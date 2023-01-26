@@ -77,7 +77,7 @@
 //#define TonUINO_Every
 //#define TonUINO_Every_4808
 //#define ALLinONE
-//#define ALLinONE_Plus
+#define ALLinONE_Plus
 
 // ######################################################################
 
@@ -199,6 +199,24 @@ inline constexpr uint8_t neoPixelNumber2 = 24; // Total Number of Pixels
 
 // ######################################################################
 
+/* uncomment the below line to enable Adafruit NeoPixels integration
+* um die Integration von Adafruit NeoPixels zu aktivieren, bitte die nächste Zeile auskommentieren 
+*/
+#define NeoPixels
+
+#ifdef NeoPixels
+#ifdef ALLinONE_Plus
+inline constexpr uint8_t NeoPixelPin = 18; // WS on AiOplus
+#else
+inline constexpr uint8_t NeoPixelPin = 5; // D5 on AiO/Classic
+#endif //AllinONE_Plus
+inline constexpr uint8_t NeoPixelCount = 10; // Total Number of Pixels
+inline constexpr uint8_t NeoPixelBrightness = 20; //Value of initial/max. Brightness
+#endif // NeoPixels 
+
+
+// ######################################################################
+
 /* uncomment the below line to enable the Speaker on/off for Classic to suppress noise
  * on startup and shutdown (automatically enabled on AiO and AiOplus)
  * um den Lautsprecher ein/aus Schalter für die Classic Variante zu unterstützen bitte
@@ -229,36 +247,36 @@ inline constexpr levelType     dfPlayer_noHeadphoneJackDetectType = levelType::a
  * um die selbe RFID zu ignorieren, wenn die bereits spielt, in der nächste
  * Zeile den Kommentar entfernen
  */
-//#define DONT_ACCEPT_SAME_RFID_TWICE
+#define DONT_ACCEPT_SAME_RFID_TWICE
 
 /* uncomment the below line to resume playback if the RFID that started the
  * playback is detected again
  * um die Wiedergabe fortzusetzen, wenn die selbe RFID erkannt wird, die bereits
  * abgespielt wird, in der nächste Zeile den Kommentar entfernen
  */
-//#define RESUME_ON_SAME_RFID
+#define RESUME_ON_SAME_RFID
 
 /* uncomment the below line to replay the last card or short cut if pressed play/pause
  * in Idle state
  * um die letzte Karte oder den letzten Short Cut wieder abzuspielen, wenn die Play/Pause Taste
  * im Idle State gedrückt wird, in der nächste Zeile den Kommentar entfernen
  */
-//#define REPLAY_ON_PLAY_BUTTON
+#define REPLAY_ON_PLAY_BUTTON
 
 // ######################################################################
 
 /* uncomment the below line(s) to enable the quiz or memory game
  * um das Quiz oder Memory Spiel zu aktivieren, in der nächste Zeile(n) den Kommentar entfernen
  */
-//#define QUIZ_GAME
-//#define MEMORY_GAME
+#define QUIZ_GAME
+#define MEMORY_GAME
 
 // ######################################################################
 
 /* uncomment the below line to store the last played card in EEPROM
  * um die letzte Karte im EEPROM zu speichern, in der nächste Zeile den Kommentar entfernen
  */
-//#define STORE_LAST_CARD
+#define STORE_LAST_CARD
 
 // ######################################################################
 
@@ -298,7 +316,7 @@ inline constexpr unsigned long btModulePairingPulse    = 500;
  * um die Batterie Spannungsmessung zu aktivieren, in der nächste Zeile den Kommentar entfernen
  * (nicht für ALLinONE, nicht empfohlen für TonUINO_Classic)
  */
-//#define BAT_VOLTAGE_MEASUREMENT
+#define BAT_VOLTAGE_MEASUREMENT
 #if not defined(ALLinONE_Plus) and not defined(ALLinONE)
 inline constexpr uint8_t voltageMeasurementPin         = A5;
 #endif // ALLinONE_Plus

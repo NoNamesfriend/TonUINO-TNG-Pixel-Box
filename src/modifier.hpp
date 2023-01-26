@@ -119,4 +119,14 @@ private:
 };
 #endif
 
+#ifdef NeoPixels
+class NightLight: public Modifier {
+public:
+  NightLight() {}
+  void    loop     () final;
+  pmode_t getActive() final { return pmode_t::night_light; }
+  void   init(pmode_t, uint8_t) final;
+};
+#endif
+
 #endif /* SRC_MODIFIER_HPP_ */

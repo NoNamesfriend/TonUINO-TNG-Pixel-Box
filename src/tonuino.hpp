@@ -15,6 +15,9 @@
 #ifdef NEO_RING
 #include "ring.hpp"
 #endif
+#ifdef NeoPixels
+#include "neo_pixels.hpp"
+#endif
 
 class Tonuino {
 public:
@@ -56,6 +59,9 @@ public:
   Chip_card& getChipCard() { return chip_card; }
 #ifdef NEO_RING
   Ring&     getRing     () { return ring     ; }
+#endif
+#ifdef NeoPixels
+  Neo_pixels& getNeoPixels() { return neo_pixels; }
 #endif
   static uint32_t generateRamdomSeed();
 
@@ -121,6 +127,10 @@ private:
   Ring                 ring                {};
 #endif
 
+#ifdef NeoPixels
+  Neo_pixels neo_pixels{};
+#endif
+
   friend class Base;
 
   Modifier             noneModifier        {};
@@ -132,7 +142,9 @@ private:
 #ifdef MODIFICATION_CARD_JUKEBOX
   JukeboxModifier      jukeboxModifier     {};
 #endif
-
+#ifdef NeoPixels
+  NightLight           nightLight          {};
+#endif
   Modifier*            activeModifier      {&noneModifier};
 
   Timer                standbyTimer        {};

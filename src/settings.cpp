@@ -65,6 +65,12 @@ void Settings::resetSettings() {
   hpMaxVolume          = 25;
   hpMinVolume          =  5;
   hpInitVolume         = 15;
+#ifdef NeoPixels
+  neoPixelHue          = 0;
+  neoPixelBaseValue    = 95;
+  neoPixelPlayAnimation = 0;
+  neoPixelNightLightValue = 255;
+#endif
 
   writeSettingsToFlash();
 }
@@ -95,6 +101,12 @@ void Settings::loadSettingsFromFlash() {
   LOG(settings_log, s_info, F("AL:" ), adminMenuLocked);
   LOG(settings_log, s_info, F("AP:" ), adminMenuPin[0], adminMenuPin[1], adminMenuPin[2], adminMenuPin[3]);
   LOG(settings_log, s_info, F("PCR:"), pauseWhenCardRemoved);
+  #ifdef NeoPixels
+  LOG(settings_log, s_info, F("NP_H:"), neoPixelHue);
+  LOG(settings_log, s_info, F("NP_V:"), neoPixelBaseValue);
+  LOG(settings_log, s_info, F("NP_PA:"), neoPixelPlayAnimation);
+  LOG(settings_log, s_info, F("NP_NLV:"), neoPixelNightLightValue);
+  #endif
 }
 
 void Settings::writeFolderSettingToFlash(uint8_t folder, uint8_t track) {

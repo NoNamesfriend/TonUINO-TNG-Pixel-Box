@@ -5,6 +5,7 @@
 #ifdef BAT_VOLTAGE_MEASUREMENT
 #include "logger.hpp"
 #include "mp3.hpp"
+#include "neo_pixels.hpp"
 
 namespace {
 

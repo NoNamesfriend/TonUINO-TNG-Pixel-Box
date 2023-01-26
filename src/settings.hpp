@@ -46,6 +46,12 @@ struct Settings {
   uint8_t     hpMaxVolume         {};
   uint8_t     hpMinVolume         {};
   uint8_t     hpInitVolume        {};
+  #ifdef NeoPixels
+  uint16_t    neoPixelHue            {};
+  uint8_t     neoPixelBaseValue      {};
+  uint8_t     neoPixelPlayAnimation  {};
+  uint8_t     neoPixelNightLightValue{};
+  #endif
 };
 
 // emulates EEPROM.put() .get() and .update() on LGT8F328P platform

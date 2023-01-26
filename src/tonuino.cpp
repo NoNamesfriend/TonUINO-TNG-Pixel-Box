@@ -2,6 +2,9 @@
 
 #include <Arduino.h>
 #include <avr/sleep.h>
+#ifdef NeoPixels
+#include <Adafruit_NeoPixel.h>
+#endif
 
 #include "array.hpp"
 #include "chip_card.hpp"
@@ -9,6 +12,9 @@
 #include "constants.hpp"
 #include "logger.hpp"
 #include "state_machine.hpp"
+#ifdef NeoPixels
+#include "neo_pixels.hpp"
+#endif
 
 namespace {
 
@@ -92,6 +98,10 @@ void Tonuino::setup() {
   mp3.init();
 
   // init state machine
+  #ifdef NeoPixels
+  neo_pixels.init();
+  #endif
+
   SM_tonuino::start();
 
   // ignore commands, if buttons already pressed during startup
@@ -188,6 +198,10 @@ void Tonuino::loop() {
   mp3.loop();
 
   activeModifier->loop();
+
+  #ifdef NeoPixels
+  neo_pixels.loop();
+  #endif
 
   SM_tonuino::dispatch(command_e(commands.getCommandRaw()));
   SM_tonuino::dispatch(card_e(chip_card.getCardEvent()));
@@ -387,6 +401,10 @@ void Tonuino::shutdown() {
   ring.call_on_sleep();
 #endif
 
+#ifdef NeoPixels
+  neo_pixels.shutdown();
+#endif
+
 #if defined SPKONOFF
   digitalWrite(ampEnablePin, getLevel(ampEnablePinType, level::inactive));
   delay(1000);
@@ -491,6 +509,12 @@ bool Tonuino::specialCard(const folderSettings &nfcTag) {
                               switchBtModuleOnOff();
                               return true;
 #endif // BT_MODULE
+
+#ifdef NeoPixels
+case pmode_t::night_light:  LOG(card_log, s_info, F("act. nightLight"));
+                           mp3.playAdvertisement(advertTracks::t_260_activate_mod_card, false/*olnyIfIsPlaying*/);
+                           activeModifier = &nightLight                                     ;break;
+#endif      
 
   default:                    return false;
   }

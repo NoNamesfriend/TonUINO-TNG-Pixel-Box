@@ -17,6 +17,9 @@ const __FlashStringHelper* str_RepeatSingleModifier() { return F("RepeatSingle")
 #ifdef MODIFICATION_CARD_JUKEBOX
 const __FlashStringHelper* str_JukeboxModifier    () { return F("Jukebox")      ; }
 #endif
+#ifdef NeoPixels
+const __FlashStringHelper* str_NightLight          () { return F("NightLight")  ; }
+#endif
 
 } // anonymous namespace
 
@@ -207,3 +210,14 @@ bool JukeboxModifier::handleRFID(const folderSettings &newCard) {
 #endif
 
 
+#ifdef NeoPixels
+void NightLight::loop() {
+  LOG(modifier_log, s_info, str_NightLight(), F(" -> DISPLAY light light!"));
+  tonuino.getNeoPixels().displayNightLight();
+}
+
+void NightLight::init(pmode_t, uint8_t) {
+  mp3.playAdvertisement(advertTracks::t_350_night_light);
+}
+
+#endif

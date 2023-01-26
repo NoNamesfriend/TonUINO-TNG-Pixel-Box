@@ -58,6 +58,9 @@ enum class mp3Tracks: uint16_t {
   t_322_mode_quiz_game         = 322,
   t_323_mode_memory_game       = 323,
   t_324_mode_switch_bt         = 324,
+#ifdef NeoPixels
+  t_326_mode_night_light       = 326,
+#endif
   t_327_select_file            = 327,
   t_328_select_first_file      = 328,
   t_329_select_last_file       = 329,
@@ -108,6 +111,12 @@ enum class mp3Tracks: uint16_t {
   t_912_admin_lock             = 912,
   t_913_pause_on_card_removed  = 913,
   t_914_memory_game_cards      = 914,
+#ifdef NeoPixels
+  t_915_neo_pixel_hue          = 915,
+  t_916_neo_pixel_value        = 916,
+  t_917_neo_pixel_play_animation = 917,
+  t_918_neo_pixel_night_light_brightness = 918,
+#endif
   t_919_continue_admin         = 919,
   t_920_eq_intro               = 920,
   t_921_normal                 = 921,
@@ -130,6 +139,12 @@ enum class mp3Tracks: uint16_t {
   t_942_up                     = 942,
   t_943_down                   = 943,
   t_944_startup                = 944,
+#ifdef NeoPixels
+  t_950_neo_pixel_hue_intro    = 950,
+  t_951_neo_pixel_value_intro  = 951,
+  t_952_neo_pixel_play_animation_intro = 952,
+  t_953_neo_pixel_night_light_brightness_intro = 953,
+#endif
   t_960_timer_intro            = 960,
   t_961_timer_5                = 961,
   t_962_timer_15               = 962,
@@ -180,6 +195,9 @@ enum class advertTracks: uint16_t {
   t_320_bt_on                  = 320,
   t_321_bt_off                 = 321,
   t_322_bt_pairing             = 322,
+#ifdef NeoPixels
+  t_350_night_light            = 350,
+#endif
 };
 
 // implement a notification class,

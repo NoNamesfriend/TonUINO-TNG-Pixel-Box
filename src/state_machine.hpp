@@ -326,6 +326,12 @@ public:
     minVolume,
     initVolume,
     eq,
+    #ifdef NeoPixels
+    neoPixelHue,
+    neoPixelBaseValue,
+    neoPixelPlayAnimation,
+    neoPixelNightLightValue,
+    #endif
   };
   static Type type;
 };
