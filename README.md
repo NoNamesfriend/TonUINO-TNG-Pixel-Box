@@ -1,108 +1,26 @@
-# TonUINO
-Die DIY Musikbox (nicht nur) für Kinder
+# TonUINO - Pixel Box
+Das ist ein Fork der TonUINO Musikbox.
+Alle relevanten Informationen sind im Hauptrepositorie zu finden: https://github.com/tonuino/TonUINO-TNG
 
-# Anleitung zum Compilieren
+In diesem Fork wird die TonUINO Software mit der Integration von Adafruit NeoPixel erweitert.
 
-Allgemeine Anleitungen zum Einrichten der IDE findet man hier [www.tonuino.de/TNG](https://www.tonuino.de/TNG) und hier [www.leiterkartenpiraten.de](https://www.leiterkartenpiraten.de)
+# Features
+Hier sind alle Features aufgelistet, die momentan in ergänzt wurden.
 
-## Arduino IDE
-- Bei der classic und AiO HW Variante muss die Datei 'platform.local.txt' in den avr HW Ordner kopiert werden. Dieser Ordner ist gewöhnlich folgender:
-```
-  Windows:
-    Classic:  C:\Users\<Benutzer>\AppData\Local\Arduino15\packages\arduino\hardware\avr\1.8.6
-    AiO:      C:\Users\<Benutzer>\AppData\Local\Arduino15\packages\LGT8fx Boards\hardware\avr\1.0.7
+- Animation beim Starten der Box
+- Animation beim Auflegen einer neuen Karte
+- Animation während Song spielt
+- Animation wenn Song pausiert
+- Animation für nächster Song
+- Animation für vorheriger Song
 
-  Linux:
-    Classic:  ~/.arduino15/packages/arduino/hardware/avr/1.8.6
-    Aio:      ~/.arduino15/packages/LGT8fx Boards/hardware/avr/1.0.7
+- Farbliche Darstellung der Lautstärke (Abhängig von Einstellungen Min/Max)
+- Farbliche Darstellung wenn im Admin Menü
+- Nachtlicht Modifier (Permanentes gelbes Licht und keine anderen Animationen)
+- Erstellen einer neuen Nachtlicht Modifier-Karte
 
-  MacOS 13.1:
-    Classic:  /Applications/Arduino.app/Contents/Java/arduino/hardware/avr
-    AiO:      /Applications/Arduino.app/Contents/Java/LGT8fx Boards/hardware/avr
-```
-- Man findet den Ordner auch, wenn man die Datei platform.txt sucht. 
+- Einstellung für Farbe der LEDs
+- Einstellung für Grundhelligkeit der Animationen
+- Einstellung für Auswahl einer Play-Animation
+- Einstellung für Helligkeit des Nachtlichts
 
-- Für die AiOplus HW Variante sind keine Änderungen notwendig
-
-## platform.io
-- geht out-of-the-box
-
-# Installation
-
-Die SD Karte (Ordner mp3 und advert) hat sich gegenüber der Version 2.x geändert. Hier kann man die Dateien downloaden: [www.tonuino.de/TNG](https://www.tonuino.de/TNG)
-
-# Change Log
-
-## Version 3.1.2 (23.01.2023)
-- [Issue 050](https://github.com/tonuino/TonUINO-TNG/issues/50): Cards with bad version handled as modification cards
-
-## Version 3.1.2 (22.01.2023)
-- [Issue 038](https://github.com/tonuino/TonUINO-TNG/issues/38): Bad initialization of setting 'pause when card removed'
-
-## Version 3.1.2 (20.01.2023)
-- [Issue 039](https://github.com/tonuino/TonUINO-TNG/issues/39): No pause if card is removed too early
-
-## Version 3.1.2 (16.01.2023)
-- [Issue 028](https://github.com/tonuino/TonUINO-TNG/issues/28): Revise Button behavior
-
-## Version 3.1.1 (15.01.2023)
-- [Issue 045](https://github.com/tonuino/TonUINO-TNG/issues/45): audio_messages_de.txt isn't up to date.
-- [Issue 044](https://github.com/tonuino/TonUINO-TNG/issues/44): Statemachine remains in StartPlay forever is mp3 files missing
-
-## Version 3.1.1 (23.12.2022)
-- [Issue 034](https://github.com/tonuino/TonUINO-TNG/issues/34): Unit Test Framework and example Tests
-- [Issue 026](https://github.com/tonuino/TonUINO-TNG/issues/26): DFMiniMp3 lib support T_CHIP_VARIANT
-- Remove strange noise during startup
-- [Issue 015](https://github.com/tonuino/TonUINO-TNG/issues/15): Implement command sources
-- [Issue 016](https://github.com/tonuino/TonUINO-TNG/issues/16): Shortcut at startup doesn't work
-- Bug Fix: Cannot enter Admin Menue with buttons
-- [Issue 003](https://github.com/tonuino/TonUINO-TNG/issues/3): Shortcut does not work after power-up
-- Bug Fix: Hoerbuch mode: Bad handling of start track
-- [Issue 004](https://github.com/tonuino/TonUINO-TNG/issues/4): Implement reaction to empty card
-- [Issue 005](https://github.com/tonuino/TonUINO-TNG/issues/5): Update to use new mp3 library version 1.1.0
-
-## Version 3.1 (13.10.2022)
-- Unterstützung für alle Platinen der Leiterkartenpiraten hinzugefügt (über einfaches #define in der `src/constants.hpp` konfigurierbar)
-  - TonUINO Classic
-  - All-in-One
-  - All-in-One Plus
-  - fix for NTAG213
-
-## Version 3.0 (xx.xx.xxxx) - by Boerge1
-- vollständiges Refactoring mit State-Machine
-- Die Main-Loop läuft jetzt stabil mit 50 ms
-- Neues Feature: neuer Mode: Hörbuch einzeln (nur ein Titel wird gespielt und Fortschritt gespeichert)
-- Neues Feature: Pause, wenn Karte entfernt wird (lässt sich per Einstellungen steuern)
-- Das Admin-Menü wird nach einer Einstellung nicht verlassen (kann in der Software leicht geändert werden)
-- Das Admin-Menü kann an jeder Stelle abgebrochen werden
-- Viele weitere Verbesserungen und Bug-Fixes
-
-## Version 2.1 (xx.xx.xxxx) noch WIP
-- Partymodus hat nun eine Queue -> jedes Lied kommt nur genau 1x vorkommt
-- Neue Wiedergabe-Modi "Spezialmodus Von-Bis" - Hörspiel, Album und Party -> erlaubt z.B. verschiedene Alben in einem Ordner zu haben und je mit einer Karte zu verknüpfen
-- Admin-Menü
-- Maximale, Minimale und Initiale Lautstärke
-- Karten werden nun über das Admin-Menü neu konfiguriert
-- die Funktion der Lautstärketasten (lauter/leiser oder vor/zurück) kann im Adminmenü vertauscht werden
-- Shortcuts können konfiguriert werden!
-- Support für 5 Knöpfe hinzugefügt
-- Reset der Einstellungen ins Adminmenü verschoben
-- Modikationskarten (Sleeptimer, Tastensperre, Stopptanz, KiTa-Modus)
-- Admin-Menü kann abgesichert werden
-
-## Version 2.01 (01.11.2018)
-- kleiner Fix um die Probleme beim Anlernen von Karten zu reduzieren
-
-## Version 2.0 (26.08.2018)
-
-- Lautstärke wird nun über einen langen Tastendruck geändert
-- bei kurzem Tastendruck wird der nächste / vorherige Track abgespielt (je nach Wiedergabemodus nicht verfügbar)
-- Während der Wiedergabe wird bei langem Tastendruck auf Play/Pause die Nummer des aktuellen Tracks angesagt
-- Neuer Wiedergabemodus: **Einzelmodus**
-  Eine Karte kann mit einer einzelnen Datei aus einem Ordner verknüpft werden. Dadurch sind theoretisch 25000 verschiedene Karten für je eine Datei möglich
-- Neuer Wiedergabemodus: **Hörbuch-Modus**
-  Funktioniert genau wie der Album-Modus. Zusätzlich wir der Fortschritt im EEPROM des Arduinos gespeichert und beim nächsten mal wird bei der jeweils letzten Datei neu gestartet. Leider kann nur der Track, nicht die Stelle im Track gespeichert werden
-- Um mehr als 100 Karten zu unterstützen wird die Konfiguration der Karten nicht mehr im EEPROM gespeichert sondern direkt auf den Karten - die Karte muss daher beim Anlernen aufgelegt bleiben!
-- Durch einen langen Druck auf Play/Pause kann **eine Karte neu konfiguriert** werden
-- In den Auswahldialogen kann durch langen Druck auf die Lautstärketasten jeweils um 10 Ordner oder Dateien vor und zurück gesprungen werden
-- Reset des MP3 Moduls beim Start entfernt - war nicht nötig und hat "Krach" gemacht

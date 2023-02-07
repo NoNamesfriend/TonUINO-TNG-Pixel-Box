@@ -1,11 +1,9 @@
-//Comment out if #define NeoPixels is used in constants.hpp
-// #ifdef NeoPixels
-
 #include "neo_pixels.hpp"
 
-// #include "RGBConverterLib.h"
-
 #include "constants.hpp"
+
+#ifdef NeoPixels
+
 #include "logger.hpp"
 #include "tonuino.hpp"
 
@@ -20,6 +18,7 @@ void Neo_pixels::init()
   
   state = State::idle;
   currentState = State::none;
+  
   updateFromSettings();
 
   animStartupOnInit();
@@ -202,86 +201,17 @@ void Neo_pixels::animNewCard()
 
 void Neo_pixels::animPlay()
 {
-  if (currentState != state)
+  switch (playAnimation)
   {
-    isPreparing = true;
-    step = 1;
-    miniStep = 1;
-    updatePause = 100;
-    animStepStart = millis();
-    currentState = state;
+  case PlayAnimation::dotForwardPulse:
+    dotForwardPulse();
+    break;
+  case PlayAnimation::colorCycle:
+    colorCycle();
+    break;
+  default:
+    break;
   }
-
-  if (animStepStart + updatePause > millis())
-    return;
-
-  animStepStart = millis();
-
-  if (isPreparing)
-  {
-    isPreparing = false;
-    for (uint8_t i = 0; i < pixels.numPixels(); i++)
-    {
-      uint8_t calcValue = valueFromColor(pixels.getPixelColor(i));
-      uint8_t nextValue;
-      if (calcValue < baseValue && calcValue + 16 < baseValue) 
-      {
-        nextValue = calcValue + 16;
-        isPreparing = true;
-      }
-      else if (calcValue > baseValue && calcValue - 16 > baseValue) 
-      {
-        nextValue = calcValue - 16;
-        isPreparing = true;
-      }
-      else
-      nextValue = calcValue;
-
-      pixels.setPixelColor(i, pixels.ColorHSV(hue, 255, nextValue));
-    }
-    pixels.show();
-
-    if (isPreparing == true)
-      return;
-  }
-
-  uint8_t dimUpValue;
-  if (baseValue + (16 * miniStep) > 255)
-    dimUpValue = 255;
-  else
-    dimUpValue = baseValue + (16 * miniStep);
-
-  uint8_t dimDownValue;
-  if (255 - (16 * (miniStep - 15)) < baseValue)
-    dimDownValue = baseValue;
-  else
-    dimDownValue = 255 - (16 * (miniStep - 15));
-
-  for (uint8_t i = 0; i < pixels.numPixels(); i++)
-  {
-    if ((i - step) % 4 == 0)
-    {
-      if (miniStep <= 15)
-        pixels.setPixelColor(i, pixels.ColorHSV(hue, 255, dimUpValue));
-      else
-        pixels.setPixelColor(i, pixels.ColorHSV(hue, 255, dimDownValue));
-    }
-    else
-      pixels.setPixelColor(i, pixels.ColorHSV(hue, 255, baseValue));
-  }
-
-  pixels.show();
-
-  miniStep++;
-
-  if (miniStep > 30)
-  {
-    miniStep = 1;
-    step++;
-  }
-
-  if (step > 4)
-    step = 1;
 }
 
 void Neo_pixels::animPause()
@@ -469,6 +399,121 @@ void Neo_pixels::animVolume()
   state = State::play;
 }
 
+void Neo_pixels::dotForwardPulse() {
+if (currentState != state)
+  {
+    isPreparing = true;
+    step = 1;
+    miniStep = 1;
+    updatePause = 100;
+    animStepStart = millis();
+    currentState = state;
+  }
+
+  if (animStepStart + updatePause > millis())
+    return;
+
+  animStepStart = millis();
+
+  if (isPreparing)
+  {
+    isPreparing = false;
+    for (uint8_t i = 0; i < pixels.numPixels(); i++)
+    {
+      uint8_t calcValue = valueFromColor(pixels.getPixelColor(i));
+      uint8_t nextValue;
+      if (calcValue < baseValue && calcValue + 16 < baseValue) 
+      {
+        nextValue = calcValue + 16;
+        isPreparing = true;
+      }
+      else if (calcValue > baseValue && calcValue - 16 > baseValue) 
+      {
+        nextValue = calcValue - 16;
+        isPreparing = true;
+      }
+      else
+      nextValue = calcValue;
+
+      pixels.setPixelColor(i, pixels.ColorHSV(hue, 255, nextValue));
+    }
+    pixels.show();
+
+    if (isPreparing == true)
+      return;
+  }
+
+  uint8_t dimUpValue;
+  if (baseValue + (16 * miniStep) > 255)
+    dimUpValue = 255;
+  else
+    dimUpValue = baseValue + (16 * miniStep);
+
+  uint8_t dimDownValue;
+  if (255 - (16 * (miniStep - 15)) < baseValue)
+    dimDownValue = baseValue;
+  else
+    dimDownValue = 255 - (16 * (miniStep - 15));
+
+  for (uint8_t i = 0; i < pixels.numPixels(); i++)
+  {
+    if ((i - step) % 4 == 0)
+    {
+      if (miniStep <= 15)
+        pixels.setPixelColor(i, pixels.ColorHSV(hue, 255, dimUpValue));
+      else
+        pixels.setPixelColor(i, pixels.ColorHSV(hue, 255, dimDownValue));
+    }
+    else
+      pixels.setPixelColor(i, pixels.ColorHSV(hue, 255, baseValue));
+  }
+
+  pixels.show();
+
+  miniStep++;
+
+  if (miniStep > 30)
+  {
+    miniStep = 1;
+    step++;
+  }
+
+  if (step > 4)
+    step = 1;
+}
+
+void Neo_pixels::colorCycle() {
+if (currentState != state)
+  {
+    isPreparing = true;
+    step = 0;
+    miniStep = 1;
+    updatePause = 50;
+    animStepStart = millis();
+    currentState = state;
+  }
+
+  if (animStepStart + updatePause > millis())
+    return;
+
+  animStepStart = millis();
+
+  uint16_t hueOffset = 65536 / pixels.numPixels() / 6 * step;
+  uint16_t hueMultiplier = 65536 / pixels.numPixels();
+
+  for(uint8_t i = 0; i < pixels.numPixels(); i++) 
+  {
+    pixels.setPixelColor(i, (pixels.ColorHSV(i * hueMultiplier - hueOffset, 255, baseValue)));
+  }
+
+  pixels.show();
+
+  step++;
+
+  if (step > pixels.numPixels() * 6)
+    step = 0;
+}
+
 // ----------------------------------------------------------------------------
 // Public functions
 //
@@ -477,6 +522,7 @@ void Neo_pixels::updateFromSettings()
 {
   hue = Tonuino::getTonuino().getSettings().neoPixelHue;
   baseValue = Tonuino::getTonuino().getSettings().neoPixelBaseValue;
+  playAnimation = static_cast<PlayAnimation>(Tonuino::getTonuino().getSettings().neoPixelPlayAnimation);
   nightLightValue = Tonuino::getTonuino().getSettings().neoPixelNightLightValue;
 }
 
@@ -554,5 +600,4 @@ uint8_t Neo_pixels::valueFromColor(uint32_t color)
   return value;
 }
 
-//Comment out if #define NeoPixels is used in constants.hpp
-// #endif
+#endif

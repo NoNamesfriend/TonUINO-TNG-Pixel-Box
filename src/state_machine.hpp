@@ -279,6 +279,7 @@ public:
     #ifdef NeoPixels
     neoPixelHue,
     neoPixelBaseValue,
+    neoPixelPlayAnimation,
     neoPixelNightLightValue,
     #endif
   };

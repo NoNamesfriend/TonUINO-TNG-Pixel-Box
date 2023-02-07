@@ -53,6 +53,7 @@ void Settings::resetSettings() {
 #ifdef NeoPixels
   neoPixelHue = 0;
   neoPixelBaseValue = 95;
+  neoPixelPlayAnimation = 0;
   neoPixelNightLightValue = 255;
 #endif
 
@@ -97,6 +98,7 @@ void Settings::loadSettingsFromFlash() {
   #ifdef NeoPixels
   LOG(settings_log, s_info, F("NeoPixel Hue: "), neoPixelHue);
   LOG(settings_log, s_info, F("NeoPixel Value: "), neoPixelBaseValue);
+  LOG(settings_log, s_info, F("NeoPixel Play Animation: "), neoPixelPlayAnimation);
   LOG(settings_log, s_info, F("NeoPixel night light Value: "), neoPixelNightLightValue);
   #endif
 }

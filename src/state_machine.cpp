@@ -35,9 +35,6 @@ const __FlashStringHelper* str_Admin_InvButtons        () { return F("AdmInvButt
 const __FlashStringHelper* str_Admin_ResetEeprom       () { return F("AdmResetEeprom") ; }
 const __FlashStringHelper* str_Admin_LockAdmin         () { return F("AdmLockAdmin") ; }
 const __FlashStringHelper* str_Admin_PauseIfCardRemoved() { return F("AdmPauseIfCardRem") ; }
-#ifdef NeoPixels
-const __FlashStringHelper *str_Admin_NeoPixelHue       () { return F("AdmNeoPixelHue"); }
-#endif
 const __FlashStringHelper* str_VoiceMenu               () { return F("VoiceMenu") ; }
 const __FlashStringHelper* str_to                      () { return F(" -> ") ; }
 const __FlashStringHelper* str_enter                   () { return F("enter ") ; }
@@ -841,7 +838,7 @@ void Admin_Entry::entry() {
 
   numberOfOptions   = 13;
 #ifdef NeoPixels
-  numberOfOptions += 3;
+  numberOfOptions += 4;
 #endif
   startMessage      = lastCurrentValue == 0 ? mp3Tracks::t_900_admin : mp3Tracks::t_919_continue_admin;
   messageOffset     = mp3Tracks::t_900_admin;
@@ -947,7 +944,12 @@ void Admin_Entry::react(command_e const &cmd_e) {
              Admin_SimpleSetting::type = Admin_SimpleSetting::neoPixelBaseValue;
              transit<Admin_SimpleSetting>();
              return;
-    case 16: // NeoPixel night light value
+    case 16: // NeoPixel play animation
+             LOG(state_log, s_debug, str_Admin_Entry(), str_to(), str_Admin_SimpleSetting());
+             Admin_SimpleSetting::type = Admin_SimpleSetting::neoPixelPlayAnimation;
+             transit<Admin_SimpleSetting>();
+             return;
+    case 17: // NeoPixel night light value
              LOG(state_log, s_debug, str_Admin_Entry(), str_to(), str_Admin_SimpleSetting());
              Admin_SimpleSetting::type = Admin_SimpleSetting::neoPixelNightLightValue;
              transit<Admin_SimpleSetting>();
@@ -1014,6 +1016,7 @@ void Admin_SimpleSetting::entry() {
                       #ifdef NeoPixels
                       type == neoPixelHue       ? 65                                      :
                       type == neoPixelBaseValue ? 16                                      :
+                      type == neoPixelPlayAnimation ? static_cast<uint8_t>(Neo_pixels::PlayAnimation::NUMBER_OF_ANIMATIONS) :
                       type == neoPixelNightLightValue ? 16                                :
                       #endif
                       0;
@@ -1024,7 +1027,8 @@ void Admin_SimpleSetting::entry() {
                       #ifdef NeoPixels
                       type == neoPixelHue       ? mp3Tracks::t_950_neo_pixel_hue_intro    :
                       type == neoPixelBaseValue ? mp3Tracks::t_951_neo_pixel_value_intro  :
-                      type == neoPixelNightLightValue ? mp3Tracks::t_952_neo_pixel_night_light_brightness_intro :
+                      type == neoPixelPlayAnimation ? mp3Tracks::t_952_neo_pixel_play_animation_intro :
+                      type == neoPixelNightLightValue ? mp3Tracks::t_953_neo_pixel_night_light_brightness_intro :
                       #endif
                       mp3Tracks::t_0;
   messageOffset     = type == maxVolume  ? static_cast<mp3Tracks>(settings.minVolume)     :
@@ -1041,9 +1045,10 @@ void Admin_SimpleSetting::entry() {
                       type == initVolume ? settings.initVolume - settings.minVolume + 1   :
                       type == eq         ? settings.eq                                    : 
                       #ifdef NeoPixels
-                      type == neoPixelHue       ? ((settings.neoPixelHue + 1000) / 1000)  :
-                      type == neoPixelBaseValue ? ((settings.neoPixelBaseValue + 1) / 16) :
-                      type == neoPixelNightLightValue ? ((settings.neoPixelNightLightValue + 1) / 16) :
+                      type == neoPixelHue       ? (settings.neoPixelHue + 1000) / 1000    :
+                      type == neoPixelBaseValue ? (settings.neoPixelBaseValue + 1) / 16   :
+                      type == neoPixelPlayAnimation ? settings.neoPixelPlayAnimation + 1  :
+                      type == neoPixelNightLightValue ? (settings.neoPixelNightLightValue + 1) / 16 :
                       #endif
                       0;
 }
@@ -1077,14 +1082,13 @@ void Admin_SimpleSetting::react(command_e const &cmd_e) {
                      mp3.setEq(static_cast<DfMp3_Eq>(settings.eq - 1))          ; break;
     #ifdef NeoPixels
     case neoPixelHue: settings.neoPixelHue = currentValue * 1000 - 1000;
-                      neo_pixels.updateFromSettings()                               ; 
-                      break;
+                      neo_pixels.updateFromSettings()                           ; break;
     case neoPixelBaseValue: settings.neoPixelBaseValue = currentValue * 16 - 1;
-                            neo_pixels.updateFromSettings()                         ; 
-                            break;
+                            neo_pixels.updateFromSettings()                     ; break;
+    case neoPixelPlayAnimation: settings.neoPixelPlayAnimation = currentValue - 1;
+                            neo_pixels.updateFromSettings()                     ; break;
     case neoPixelNightLightValue: settings.neoPixelNightLightValue = currentValue * 16 - 1;
-                            neo_pixels.updateFromSettings()                         ; 
-                            break;
+                            neo_pixels.updateFromSettings()                     ; break;
     #endif
     }
     saveAndTransit();

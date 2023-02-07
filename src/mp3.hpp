@@ -75,7 +75,8 @@ enum class mp3Tracks: uint16_t {
   #ifdef NeoPixels
   t_914_neo_pixel_hue          = 914,
   t_915_neo_pixel_value        = 915,
-  t_916_neo_pixel_night_light_brightness = 916,
+  t_916_neo_pixel_play_animation = 916,
+  t_917_neo_pixel_night_light_brightness = 917,
   #endif
   t_919_continue_admin         = 919,
   t_920_eq_intro               = 920,
@@ -100,7 +101,8 @@ enum class mp3Tracks: uint16_t {
   #ifdef NeoPixels
   t_950_neo_pixel_hue_intro    = 950,
   t_951_neo_pixel_value_intro  = 951,
-  t_952_neo_pixel_night_light_brightness_intro = 952,
+  t_952_neo_pixel_play_animation_intro = 952,
+  t_953_neo_pixel_night_light_brightness_intro = 953,
   #endif
   t_960_timer_intro            = 960,
   t_961_timer_5                = 961,

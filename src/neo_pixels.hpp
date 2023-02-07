@@ -28,6 +28,13 @@ public:
     night_light
   };
 
+    enum class PlayAnimation : uint8_t
+  {
+    dotForwardPulse,
+    colorCycle,
+    NUMBER_OF_ANIMATIONS
+  };
+
   void init();
   void loop();
 
@@ -47,6 +54,7 @@ private:
   Adafruit_NeoPixel pixels;
   State state;
   State currentState;
+  PlayAnimation playAnimation;
   uint16_t hue;
   uint8_t baseValue;
   uint8_t nightLightValue;
@@ -68,6 +76,9 @@ private:
   void animNextTrack();
   void animPreviousTrack();
   void animVolume();
+
+  void dotForwardPulse();
+  void colorCycle();
 
   uint8_t valueFromColor(uint32_t color);
   float mix(float a, float b, float t) { return a + (b - a) * t; }

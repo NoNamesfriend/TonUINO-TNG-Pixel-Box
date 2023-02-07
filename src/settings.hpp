@@ -41,6 +41,7 @@ struct Settings {
   #ifdef NeoPixels
   uint16_t    neoPixelHue;
   uint8_t     neoPixelBaseValue;
+  uint8_t     neoPixelPlayAnimation;
   uint8_t     neoPixelNightLightValue;
   #endif
 };
