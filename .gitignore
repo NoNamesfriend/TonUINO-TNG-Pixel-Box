@@ -55,3 +55,6 @@ Temporary Items
 .vscode/ipch
 release.sh
 sd-card/
+
+# Additional tools
+.obsidian

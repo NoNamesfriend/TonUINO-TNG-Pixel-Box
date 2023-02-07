@@ -23,3 +23,16 @@ Hier sind alle Features aufgelistet, die momentan in ergänzt wurden.
 - Einstellung für Grundhelligkeit der Animationen
 - Einstellung für Auswahl einer Play-Animation
 - Einstellung für Helligkeit des Nachtlichts
+
+# Installation
+In dem Ordner tools befindet sich ein Zip Verzeichnis. In diesem liegen die neu hinzugefügten mp3 Dateinen. Bitte in den den jeweiligen Ordner (mp3, advert) auf der SD-Karte kopieren.
+Alternativ können die Sounddateien neu generiert werden.
+
+In der constant.hpp gibt es 3 Werte die angepasst werden können.
+NeoPixelPin: Standard Pin 18 (WS Pin auf Button Board AIO+).
+NeoPixelCount: Anzahl der verwendeten Pixel auf dem LED Streifen oder Ring.
+NeoPixelBrightness: Maximale Helligkeit der Pixel.
+
+# Hinweis
+Bis jetzt wurde diese Erwiterung nur mit der AIO+ getestet.
+Es ist noch unklar, ob es mit den anderen Platinen möglich ist oder zu Problemen führt.

@@ -6,6 +6,7 @@ advert/0302_sleep.mp3|Schlummerfunktion aktiviert.
 advert/0303_locked.mp3|TonUINO ist nun gesperrt.
 advert/0304_buttonslocked.mp3|Tasten sind nun gesperrt.
 advert/0305_kindergarden.mp3|KiTa-Modus aktiviert.
+advert/0306_night_light.mp3|Nachtlicht-Modus aktiviert.
 mp3/0300_new_tag.mp3|Oh, eine neue Karte!
 mp3/0301_select_folder.mp3|Verwende die Lautstärketasten um einen Ordner für die Karte auszuwählen. Drücke die Pausetaste um fortzufahren.
 mp3/0310.mp3|OK, wähle nun mit den Lautstärketasten den Wiedergabemodus aus.
@@ -20,6 +21,7 @@ mp3/0318_special_album.mp3|Spezialmodus Von-Bis, Album: Alle Dateien zwischen de
 mp3/0319_special_party.mp3|Spezialmodus Von-Bis, Party: Alle Dateien zwischen der Start und Enddatei zufällig wiedergeben.
 mp3/0320_mode_audio_book_single.mp3|Hörbuch Modus einzeln: Den nächsten Titel im Ordner wiedergeben und den Fortschritt speichern.
 mp3/0321_mode_repeat_last_card.mp3|Wiederhole Karte Modus: die letzte Karte oder der letzte Shortcut wird wiederholt.
+mp3/0322_mode_night_light.mp3|Nachtlicht-Modus: Anstatt der LED Effekte leuchtet durchgängig ein Nachtlicht.
 mp3/0327_select_file.mp3|OK, wähle nun bitte die Datei mit den Lautstärketasten aus.
 mp3/0328_select_first_file.mp3|OK, wähle nun bitte die Startdatei mit den Lautstärketasten aus.
 mp3/0329_select_last_file.mp3|Wähle nun bitte die Enddatei mit den Lautstärketasten aus.
@@ -45,6 +47,10 @@ mp3/0910_switch_volume.mp3|Funktion der Lautstärketasten umdrehen.
 mp3/0911_reset.mp3|Alle Einstellungen löschen.
 mp3/0912_admin_lock.mp3|Das Adminmenü absichern.
 mp3/0913_pause_on_card_removed.mp3|Pause, wenn Karte entfernt wird.
+mp3/0914_neo_pixel_hue.mp3|Neo Pixel Farbe festlegen.
+mp3/0915_neo_pixel_base_value.mp3|Neo Pixel Farbe festlegen.
+mp3/0916_neo_pixel_play_animation.mp3|Neo Pixel Play Animation festlegen.
+mp3/0917_neo_pixel_night_light_brightness.mp3|Helligkeit für Nachtlicht festlegen.
 mp3/0919_continue_admin.mp3|und weiter im Admin Menü
 mp3/0920_eq_intro.mp3|Bitte wähle eine Einstellung für den EQ mit den Lautstärketasten aus und bestätige sie mit der Pausetaste.
 mp3/0921_normal.mp3|Normal
@@ -65,6 +71,10 @@ mp3/0941_pause.mp3|Pausetaste
 mp3/0942_up.mp3|Vor- bzw. Lautertaste
 mp3/0943_down.mp3|Zurück- bzw. Leisertaste
 mp3/0944_startup.mp3|Shortcut beim Start festlegen
+mp3/0950_neo_pixel_hue_intro.mp3|Neo Pixel Farbe festlegen und mit der Pausetaste bestätigen.
+mp3/0951_neo_pixel_base_value_intro.mp3|Neo Pixel Farbe festlegen und mit der Pausetaste bestätigen.
+mp3/0952_neo_pixel_play_animation_intro.mp3|Neo Pixel Play Animation festlegen und mit der Pausetaste bestätigen.
+mp3/0953_neo_pixel_night_light_brightness_intro.mp3|Helligkeit für Nachtlicht festlegen und mit der Pausetaste bestätigen.
 mp3/0960_timer_intro.mp3|Nach wievielen Minuten soll der TonUINO ausgeschaltet werden?
 mp3/0961_timer_5.mp3|5 Minuten.
 mp3/0962_timer_15.mp3|15 Minuten.
