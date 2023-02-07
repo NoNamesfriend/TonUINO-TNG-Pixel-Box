@@ -24,3 +24,12 @@ Hier sind alle Features aufgelistet, die momentan in ergänzt wurden.
 - Einstellung für Auswahl einer Play-Animation
 - Einstellung für Helligkeit des Nachtlichts
 
+# Installation
+In der constant.hpp gibt es 3 Werte die angepasst werden können.
+NeoPixelPin: Standard Pin 18 (WS Pin auf Button Board AIO+).
+NeoPixelCount: Anzahl der verwendeten Pixel auf dem LED Streifen oder Ring.
+NeoPixelBrightness: Maximale Helligkeit der Pixel.
+
+# Hinweis
+Bis jetzt wurde diese Erwiterung nur mit der AIO+ getestet.
+Es ist noch unklar, ob es mit den anderen Platinen möglich ist oder zu Problemen führt.
