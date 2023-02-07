@@ -23,4 +23,3 @@ Hier sind alle Features aufgelistet, die momentan in ergänzt wurden.
 - Einstellung für Grundhelligkeit der Animationen
 - Einstellung für Auswahl einer Play-Animation
 - Einstellung für Helligkeit des Nachtlichts
-
