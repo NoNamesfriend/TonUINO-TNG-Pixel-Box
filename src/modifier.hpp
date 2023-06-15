@@ -103,10 +103,9 @@ public:
 #ifdef NeoPixels
 class NightLight: public Modifier {
 public:
-  NightLight(Tonuino &tonuino, Mp3 &mp3, const Settings &settings): Modifier(tonuino, mp3, settings) {}
+  NightLight(Tonuino &tonuino, Mp3 &mp3): Modifier(tonuino, mp3) {}
   void   loop     () final;
   pmode_t getActive() final { return pmode_t::night_light; }
-  void   init     () final;
 };
 #endif
 
