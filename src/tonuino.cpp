@@ -221,6 +221,10 @@ void Tonuino::checkStandby() {
 void Tonuino::shutdown() {
   LOG(standby_log, s_info, F("power off!"));
 
+  #ifdef NeoPixels
+  neo_pixels.shutdown();
+  #endif
+
 #if defined ALLinONE || defined ALLinONE_Plus
   digitalWrite(ampEnablePin, getLevel(ampEnablePinType, level::inactive));
 #endif

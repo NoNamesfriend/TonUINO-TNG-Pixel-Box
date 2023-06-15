@@ -37,6 +37,7 @@ public:
 
   void init();
   void loop();
+  void shutdown();
 
   State &getState() { return state; }
   void setState(State state)
@@ -68,6 +69,7 @@ private:
 
   void animStartup();
   void animStartupOnInit();
+  void animShutdown();
   void animIdle();
   void animNewCard();
   void animAdmin();

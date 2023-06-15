@@ -50,7 +50,7 @@ void Neo_pixels::loop()
   case State::pause:
     animPause();
     break;
-  case State::next:
+  case State::next: 
     animNextTrack();
     break;
   case State::previous:
@@ -62,6 +62,11 @@ void Neo_pixels::loop()
   default:
     break;
   }
+}
+
+void Neo_pixels::shutdown()
+{
+  animShutdown();
 }
 
 // ----------------------------------------------------------------------------
@@ -116,6 +121,17 @@ void Neo_pixels::animStartupOnInit()
   {
     pixels.setPixelColor(i, pixels.ColorHSV(hue, 255, baseValue));
     pixels.setPixelColor(pixels.numPixels() - 1 - i, pixels.ColorHSV(hue, 255, baseValue));
+    pixels.show();
+    delay(100);
+  }
+}
+
+void Neo_pixels::animShutdown()
+{
+  for (uint8_t i = 0; i < pixels.numPixels() / 2; i++)
+  {
+    pixels.setPixelColor(pixels.numPixels() / 2 + i, 0);
+    pixels.setPixelColor(pixels.numPixels() / 2 - 1 - i, 0);
     pixels.show();
     delay(100);
   }
@@ -386,7 +402,7 @@ void Neo_pixels::animVolume()
 
   for (uint8_t i = 0; i < onPixels; i++)
   {
-    uint16_t volumeHue = map(i, 0, pixels.numPixels(), 65535 / 6, -1000);
+    uint16_t volumeHue = map(i, 0, pixels.numPixels(), 22000, -2000);
     pixels.setPixelColor(i, pixels.ColorHSV(volumeHue, 255, 255));
   }
   pixels.show();
