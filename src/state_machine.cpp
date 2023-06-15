@@ -69,7 +69,6 @@ void VoiceMenu<SMT>::entry(bool entryPlayAfter) {
 template<SM_type SMT>
 void VoiceMenu<SMT>::playCurrentValue() {
   SM<SMT>::mp3.enqueueMp3FolderTrack(messageOffset + currentValue);
-  previewTimer.start(1000);
   previewStarted = false;
 }
 
@@ -78,8 +77,7 @@ void VoiceMenu<SMT>::react(command cmd) {
   if (   currentValue != 0
       && preview
       && not previewStarted
-      && previewTimer.isExpired()
-      && not SM<SMT>::mp3.isPlaying())
+      && not SM<SMT>::mp3.isPlayingMp3())
   {
     LOG(state_log, s_debug, str_VoiceMenu(), F("::react() start preview "), currentValue);
     if (previewFromFolder == 0)
@@ -109,6 +107,14 @@ void VoiceMenu<SMT>::react(command cmd) {
     currentValue = max(currentValue - 1, 1);
     playCurrentValue();
     break;
+
+#ifdef SerialInputAsCommand
+  case command::menu_jump:
+    currentValue = min(max(this->tonuino.getMenuJump(), 1),numberOfOptions);
+    playCurrentValue();
+    break;
+#endif
+
   default:
     break;
   }
@@ -141,7 +147,7 @@ void ChMode::react(command_e const &cmd_e) {
   if (isAbort(cmd))
     return;
 
-  if ((cmd == command::select) && (currentValue != 0)) {
+  if (Commands::isSelect(cmd) && (currentValue != 0)) {
     folder.mode = static_cast<pmode_t>(currentValue);
     LOG(state_log, s_info, str_ChMode(), F(": "), currentValue);
     if (folder.mode == pmode_t::admin) {
@@ -186,7 +192,7 @@ void ChFolder::react(command_e const &cmd_e) {
   if (isAbort(cmd))
     return;
 
-  if ((cmd == command::select) && (currentValue != 0)) {
+  if (Commands::isSelect(cmd) && (currentValue != 0)) {
     folder.folder = currentValue;
     LOG(state_log, s_info, str_ChFolder(), F(": "), currentValue);
     if (folder.mode == pmode_t::einzel) {
@@ -229,7 +235,7 @@ void ChTrack::react(command_e const &cmd_e) {
   if (isAbort(cmd))
     return;
 
-  if ((cmd == command::select) && (currentValue != 0)) {
+  if (Commands::isSelect(cmd) && (currentValue != 0)) {
     folder.special = currentValue;
     LOG(state_log, s_info, str_ChTrack(), F(": "), currentValue);
     transit<finished>();
@@ -262,7 +268,7 @@ void ChFirstTrack::react(command_e const &cmd_e) {
   if (isAbort(cmd))
     return;
 
-  if ((cmd == command::select) && (currentValue != 0)) {
+  if (Commands::isSelect(cmd) && (currentValue != 0)) {
     folder.special = currentValue;
     LOG(state_log, s_info, str_ChFirstTrack(), F(": "), currentValue);
     transit<ChLastTrack>();
@@ -297,7 +303,7 @@ void ChLastTrack::react(command_e const &cmd_e) {
   if (isAbort(cmd))
     return;
 
-  if ((cmd == command::select) && (currentValue != 0)) {
+  if (Commands::isSelect(cmd) && (currentValue != 0)) {
     folder.special2 = currentValue;
     LOG(state_log, s_info, str_ChLastTrack(), F(": "), currentValue);
     transit<finished>();
@@ -324,7 +330,8 @@ void WriteCard::react(command_e const &cmd_e) {
 
   switch (current_subState) {
   case start_waitCardInserted:
-    mp3.enqueueMp3FolderTrack(mp3Tracks::t_800_waiting_for_card, true/*playAfter*/);
+    if (chip_card.isCardRemoved())
+      mp3.enqueueMp3FolderTrack(mp3Tracks::t_800_waiting_for_card/*, true*//*playAfter*/); // TODO
     current_subState = run_writeCard;
     break;
   case run_writeCard:
@@ -378,6 +385,7 @@ bool Base::readCard() {
     LOG(state_log, s_debug, str_Base(), str_to(), str_Admin_NewCard());
     Admin_NewCard::return_to_idle = true;
     mp3.enqueueMp3FolderTrack(mp3Tracks::t_300_new_tag);
+    Admin_NewCard::wait_track_finished = true;
     transit<Admin_NewCard>();
     return false;
   }
@@ -393,9 +401,10 @@ bool Base::readCard() {
 }
 
 bool Base::handleShortcut(uint8_t shortCut) {
-  if (shortCut <= 3 && settings.shortCuts[shortCut].folder != 0) {
-    if (settings.shortCuts[shortCut].mode != pmode_t::repeat_last)
-      tonuino.setFolder(&settings.shortCuts[shortCut]);
+  folderSettings &sc_folderSettings = settings.getShortCut(shortCut);
+  if (sc_folderSettings.folder != 0 && sc_folderSettings.folder != 0xff) {
+    if (sc_folderSettings.mode != pmode_t::repeat_last)
+      tonuino.setFolder(&sc_folderSettings);
     if (tonuino.getFolder() != 0) {
       LOG(state_log, s_debug, str_Base(), str_to(), str_StartPlay());
       transit<StartPlay>();
@@ -420,21 +429,31 @@ void Base::handleReadCard() {
 bool Base::checkForShortcutAndShutdown(command cmd) {
   uint8_t shortCut = 0xff;
   switch(cmd) {
-  case command::shortcut1: shortCut = 0      ; break;
-  case command::shortcut2: shortCut = 1      ; break;
-  case command::shortcut3: shortCut = 2      ; break;
-  case command::start    : shortCut = 3      ; break;
-  case command::shutdown : mp3.enqueueMp3FolderTrack(mp3Tracks::t_262_pling);
+  case command::shortcut1: shortCut = 1      ; break;
+  case command::shortcut2: shortCut = 2      ; break;
+  case command::shortcut3: shortCut = 3      ; break;
+  case command::start    : shortCut = 4      ; break;
+#ifndef DISABLE_SHUTDOWN_VIA_BUTTON
+  case command::shutdown : if (tonuino.getActiveModifier().handleButton(command::shutdown))
+                             return false;
+                           mp3.enqueueMp3FolderTrack(mp3Tracks::t_262_pling);
                            mp3.loop();
                            delay(1000);
                            tonuino.shutdown();
                                                break;
+#endif
   default                :                     break;
   }
+#ifdef BUTTONS3X3
+  if (Commands::isExtButton(cmd))
+    shortCut = static_cast<uint8_t>(cmd);
+#endif
   if (shortCut != 0xff) {
+    if (tonuino.getActiveModifier().handleButton(command::shortcut1))
+      return false;
     if (handleShortcut(shortCut))
       return true;
-    else
+    else if (shortCut == 4)
       mp3.enqueueMp3FolderTrack(mp3Tracks::t_262_pling);
   }
   return false;
@@ -463,13 +482,14 @@ void Idle::react(command_e const &cmd_e) {
 
   switch (cmd) {
   case command::admin:
+    if (tonuino.getActiveModifier().handleButton(command::admin))
+      return;
     LOG(state_log, s_debug, str_Idle(), str_to(), str_Admin_Allow());
     transit<Admin_Allow>();
     return;
   default:
     break;
   }
-
 }
 
 void Idle::react(card_e const &c_e) {
@@ -507,12 +527,16 @@ void Play::react(command_e const &cmd_e) {
   const command cmd = commands.getCommand(cmd_e.cmd_raw, state_for_command::play);
   switch (cmd) {
   case command::admin:
-    LOG(state_log, s_debug, str_Play(), str_to(), str_Admin_Allow());
-    transit<Admin_Allow>();
+    if (tonuino.getActiveModifier().handleButton(command::admin))
+      return;
+    if (settings.adminMenuLocked != 1) { // only card is allowed
+      LOG(state_log, s_debug, str_Play(), str_to(), str_Admin_Allow());
+      transit<Admin_Allow>();
+    }
     return;
   case command::pause:
     LOG(state_log, s_debug, F("Pause Taste"));
-    if (tonuino.getActiveModifier().handlePause())
+    if (tonuino.getActiveModifier().handleButton(command::pause))
       break;
     LOG(state_log, s_debug, str_Play(), str_to(), str_Pause());
     transit<Pause>();
@@ -521,12 +545,12 @@ void Play::react(command_e const &cmd_e) {
     #endif
     return;
   case command::track:
-    if (tonuino.getActiveModifier().handlePause())
+    if (tonuino.getActiveModifier().handleButton(command::pause))
       break;
     tonuino.playTrackNumber();
     break;
   case command::volume_up:
-    if (tonuino.getActiveModifier().handleVolumeUp())
+    if (tonuino.getActiveModifier().handleButton(command::volume_up))
       break;
     mp3.increaseVolume();
     #if defined NeoPixels
@@ -535,7 +559,7 @@ void Play::react(command_e const &cmd_e) {
     #endif
     break;
   case command::next:
-    if (tonuino.getActiveModifier().handleNextButton())
+    if (tonuino.getActiveModifier().handleButton(command::next))
       break;
     tonuino.nextTrack();
     #if defined NeoPixels
@@ -546,12 +570,12 @@ void Play::react(command_e const &cmd_e) {
     #if defined NeoPixels
     neo_pixels.setState(Neo_pixels::State::next);
     #endif
-    if (tonuino.getActiveModifier().handleNextButton())
+    if (tonuino.getActiveModifier().handleButton(command::next10))
       break;
     tonuino.nextTrack(10);
     break;
   case command::volume_down:
-    if (tonuino.getActiveModifier().handleVolumeDown())
+    if (tonuino.getActiveModifier().handleButton(command::volume_down))
       break;
     mp3.decreaseVolume();
     #if defined NeoPixels
@@ -560,7 +584,7 @@ void Play::react(command_e const &cmd_e) {
     #endif
     break;
   case command::previous:
-    if (tonuino.getActiveModifier().handlePreviousButton())
+    if (tonuino.getActiveModifier().handleButton(command::previous))
       break;
     tonuino.previousTrack();
     #if defined NeoPixels
@@ -571,7 +595,7 @@ void Play::react(command_e const &cmd_e) {
   #if defined NeoPixels
     neo_pixels.setState(Neo_pixels::State::previous);
     #endif
-    if (tonuino.getActiveModifier().handlePreviousButton())
+    if (tonuino.getActiveModifier().handleButton(command::previous10))
       break;
     tonuino.previousTrack(10);
     break;
@@ -595,7 +619,7 @@ void Play::react(card_e const &c_e) {
       handleReadCard();
     return;
   case cardEvent::removed:
-    if (settings.pauseWhenCardRemoved && not tonuino.getActiveModifier().handlePause()) {
+    if (settings.pauseWhenCardRemoved && not tonuino.getActiveModifier().handleButton(command::pause)) {
       transit<Pause>();
       return;
     }
@@ -628,11 +652,15 @@ void Pause::react(command_e const &cmd_e) {
 
   switch (cmd) {
   case command::admin:
-    LOG(state_log, s_debug, str_Pause(), str_to(), str_Admin_Allow());
-    transit<Admin_Allow>();
+    if (tonuino.getActiveModifier().handleButton(command::admin))
+      return;
+    if (settings.adminMenuLocked != 1) { // only card is allowed
+      LOG(state_log, s_debug, str_Pause(), str_to(), str_Admin_Allow());
+      transit<Admin_Allow>();
+    }
     return;
   case command::pause:
-    if (tonuino.getActiveModifier().handlePause())
+    if (tonuino.getActiveModifier().handleButton(command::pause))
       break;
     LOG(state_log, s_debug, str_Pause(), str_to(), str_Play());
     transit<Play>();
@@ -649,7 +677,7 @@ void Pause::react(card_e const &c_e) {
   switch (c_e.card_ev) {
   case cardEvent::inserted:
     if (readCard()) {
-      if (settings.pauseWhenCardRemoved && tonuino.getCard() == lastCardRead && not tonuino.getActiveModifier().handlePause()) {
+      if (settings.pauseWhenCardRemoved && tonuino.getCard() == lastCardRead && not tonuino.getActiveModifier().handleButton(command::pause)) {
         transit<Play>();
         return;
       }
@@ -668,16 +696,23 @@ void Pause::react(card_e const &c_e) {
 void StartPlay::entry() {
   LOG(state_log, s_info, str_enter(), str_StartPlay());
   mp3.enqueueMp3FolderTrack(mp3Tracks::t_262_pling);
+  timer.stop();
 }
 
 void StartPlay::react(command_e const &/*cmd_e*/) {
-  if (not mp3.isPlayingMp3()) {
+  if (timer.isActive()) {
+    if (timer.isExpired()) {
+      LOG(state_log, s_debug, str_StartPlay(), str_to(), str_Play());
+      if (settings.pauseWhenCardRemoved && chip_card.isCardRemoved())
+        transit<Pause>();
+      else
+        transit<Play>();
+      return;
+    }
+  }
+  else if (not mp3.isPlayingMp3()) {
     tonuino.playFolder();
-    LOG(state_log, s_debug, str_StartPlay(), str_to(), str_Play());
-    if (settings.pauseWhenCardRemoved && chip_card.isCardRemoved())
-      transit<Pause>();
-    else
-      transit<Play>();
+    timer.start(dfPlayer_timeUntilStarts);
   }
 }
 
@@ -805,7 +840,7 @@ void Admin_Allow::react(command_e const &cmd_e) {
 //  case get_match_c         :
 //    VoiceMenu::react(b);
 //    const command cmd = commands.getCommand(cmd_e.cmd_raw, state_for_command::admin);
-//    if ((cmd == command::select) && (currentValue != 0)) {
+//    if (Commands::isSelect(cmd) && (currentValue != 0)) {
 //      if (current_subState == cv)
 //        current_subState = allow;
 //      else
@@ -854,31 +889,35 @@ void Admin_Entry::entry() {
   neo_pixels.setState(Neo_pixels::State::admin);
 #endif
 
-  VoiceMenu::entry();
+  VoiceMenu::entry(startMessage == mp3Tracks::t_919_continue_admin);
 
   currentValue      = lastCurrentValue;
 }
 
 void Admin_Entry::react(command_e const &cmd_e) {
-  if (not chip_card.isCardRemoved())
-    return;
-
   if (cmd_e.cmd_raw != commandRaw::none) {
     LOG(state_log, s_debug, str_Admin_Entry(), F("::react() "), static_cast<int>(cmd_e.cmd_raw));
   }
   const command cmd = commands.getCommand(cmd_e.cmd_raw, state_for_command::admin);
+
+  if (not chip_card.isCardRemoved()) {
+    if (cmd != command::none)
+      mp3.enqueueMp3FolderTrack(mp3Tracks::t_801_remove_card);
+    return;
+  }
 
   VoiceMenu::react(cmd);
 
   if (isAbort(cmd))
     return;
 
-  if ((cmd == command::select) && (currentValue != 0)) {
+  if (Commands::isSelect(cmd) && (currentValue != 0)) {
     lastCurrentValue = currentValue;
     switch (currentValue) {
     case 0:  break;
     case 1:  // create new card
              LOG(state_log, s_debug, str_Admin_Entry(), str_to(), str_Admin_NewCard());
+             Admin_NewCard::wait_track_finished = false;
              transit<Admin_NewCard>();
              return;
     case 2:  // Maximum Volume
@@ -963,7 +1002,13 @@ void Admin_Entry::react(command_e const &cmd_e) {
 
 void Admin_NewCard::entry() {
   LOG(state_log, s_info, str_enter(), str_Admin_NewCard());
-  current_subState = start_setupCard;
+  if (wait_track_finished) {
+    current_subState = wait_track;
+    timer.start(dfPlayer_timeUntilStarts);
+  }
+  else {
+    current_subState = start_setupCard;
+  }
 }
 
 void Admin_NewCard::react(command_e const &cmd_e) {
@@ -971,6 +1016,10 @@ void Admin_NewCard::react(command_e const &cmd_e) {
     LOG(state_log, s_debug, str_Admin_NewCard(), F("::react() "), static_cast<int>(cmd_e.cmd_raw));
   }
   switch (current_subState) {
+  case wait_track:
+    if (timer.isExpired() and not mp3.isPlaying())
+      current_subState = start_setupCard;
+    break;
   case start_setupCard:
     SM_setupCard::start();
     current_subState = run_setupCard;
@@ -1038,7 +1087,7 @@ void Admin_SimpleSetting::entry() {
   preview           = false;
   previewFromFolder = 0;
 
-  VoiceMenu::entry(false);
+  VoiceMenu::entry();
 
   currentValue      = type == maxVolume  ? settings.maxVolume - settings.minVolume        :
                       type == minVolume  ? settings.minVolume                             :
@@ -1073,7 +1122,7 @@ void Admin_SimpleSetting::react(command_e const &cmd_e) {
   if (isAbort(cmd))
     return;
 
-  if ((cmd == command::select) && (currentValue != 0)) {
+  if (Commands::isSelect(cmd) && (currentValue != 0)) {
     switch (type) {
     case maxVolume : settings.maxVolume  = currentValue + settings.minVolume    ; break;
     case minVolume : settings.minVolume  = currentValue                         ; break;
@@ -1110,7 +1159,7 @@ void Admin_ModCard::entry() {
   preview           = false;
   previewFromFolder = 0;
 
-  VoiceMenu::entry(false);
+  VoiceMenu::entry();
 
   mode              = pmode_t::none;
   current_subState  = start_writeCard;
@@ -1123,7 +1172,8 @@ void Admin_ModCard::react(command_e const &cmd_e) {
   }
   const command cmd = commands.getCommand(cmd_e.cmd_raw, state_for_command::admin);
 
-  VoiceMenu::react(cmd);
+  if (not readyToWrite)
+    VoiceMenu::react(cmd);
 
   if (isAbort(cmd))
     return;
@@ -1163,8 +1213,7 @@ void Admin_ModCard::react(command_e const &cmd_e) {
     }
     return;
   }
-
-  if ((cmd == command::select) && (currentValue != 0)) {
+  else if (Commands::isSelect(cmd) && (currentValue != 0)) {
     if (mode == pmode_t::none) {
       mode = static_cast<pmode_t>(currentValue);
       if (mode != pmode_t::sleep_timer) {
@@ -1175,7 +1224,7 @@ void Admin_ModCard::react(command_e const &cmd_e) {
         numberOfOptions   = 4;
         startMessage      = mp3Tracks::t_960_timer_intro;
         messageOffset     = mp3Tracks::t_960_timer_intro;
-        VoiceMenu::entry(false);
+        VoiceMenu::entry();
       }
     }
     else {
@@ -1196,7 +1245,7 @@ void Admin_ShortCut::entry() {
   preview           = false;
   previewFromFolder = 0;
 
-  VoiceMenu::entry(false);
+  VoiceMenu::entry();
 
   shortcut = 0;
 }
@@ -1213,16 +1262,22 @@ void Admin_ShortCut::react(command_e const &cmd_e) {
     return;
 
   if (shortcut == 0) {
-    if ((cmd == command::select) && (currentValue != 0)) {
+    if (Commands::isSelect(cmd) && (currentValue != 0)) {
       shortcut = currentValue;
       current_subState = start_setupCard;
     }
+#ifdef BUTTONS3X3
+    else if (Commands::isExtButton(cmd)) {
+      shortcut = static_cast<uint8_t>(cmd);
+      current_subState = start_setupCard;
+      LOG(state_log, s_info, F("shortcut set"), static_cast<int>(shortcut));
+    }
+#endif
   }
   else {
     switch (current_subState) {
     case start_setupCard:
-      settings.shortCuts[shortcut-1].folder = 0;
-      settings.shortCuts[shortcut-1].mode = pmode_t::none;
+      settings.setShortCut(shortcut, folderSettings{0,pmode_t::none,0,0});
       settings.writeSettingsToFlash();
       SM_setupCard::start();
       current_subState = run_setupCard;
@@ -1238,7 +1293,7 @@ void Admin_ShortCut::react(command_e const &cmd_e) {
       }
       break;
     case end_setupCard:
-      settings.shortCuts[shortcut-1] = SM_setupCard::folder;
+      settings.setShortCut(shortcut, SM_setupCard::folder);
       saveAndTransit();
       return;
     default:
@@ -1259,7 +1314,7 @@ void Admin_StandbyTimer::entry() {
   preview           = false;
   previewFromFolder = 0;
 
-  VoiceMenu::entry(false);
+  VoiceMenu::entry();
 }
 
 void Admin_StandbyTimer::react(command_e const &cmd_e) {
@@ -1273,7 +1328,7 @@ void Admin_StandbyTimer::react(command_e const &cmd_e) {
   if (isAbort(cmd))
     return;
 
-  if ((cmd == command::select) && (currentValue != 0)) {
+  if (Commands::isSelect(cmd) && (currentValue != 0)) {
     switch (currentValue) {
     case 1: settings.standbyTimer =  5; break;
     case 2: settings.standbyTimer = 15; break;
@@ -1293,7 +1348,7 @@ void Admin_CardsForFolder::entry() {
 
   folder.mode = pmode_t::einzel;
 
-  current_subState = start_getFolder;
+  current_subState = start_setupCard;
 }
 
 void Admin_CardsForFolder::react(command_e const &cmd_e) {
@@ -1307,62 +1362,33 @@ void Admin_CardsForFolder::react(command_e const &cmd_e) {
     return;
 
   switch (current_subState) {
-  case start_getFolder:
-    numberOfOptions   = 99;
-    startMessage      = mp3Tracks::t_301_select_folder;
-    messageOffset     = mp3Tracks::t_0;
-    preview           = true;
-    previewFromFolder = 0;
-
-    VoiceMenu::entry();
-    current_subState = run_getFolder;
+  case start_setupCard:
+    SM_setupCard::current_state_ptr = &tinyfsm::_state_instance< ChFolder >::value;
+    SM_setupCard::folder.mode = pmode_t::album_vb;
+    SM_setupCard::enter();
+    current_subState = run_setupCard;
     break;
-  case run_getFolder:
-    VoiceMenu::react(cmd);
-    if ((cmd == command::select) && (currentValue != 0)) {
-      folder.folder = currentValue;
-      current_subState = start_getSpecial;
+  case run_setupCard:
+    SM_setupCard::dispatch(cmd_e);
+    if (SM_setupCard::is_in_state<finished_setupCard>())
+      current_subState = end_setupCard;
+    if (SM_setupCard::is_in_state<finished_abort_setupCard>()) {
+      LOG(state_log, s_info, str_Admin_CardsForFolder(), str_abort());
+      transit<finished_abort>();
+      return;
     }
     break;
-  case start_getSpecial:
-    numberOfOptions   = mp3.getFolderTrackCount(folder.folder);
-    startMessage      = mp3Tracks::t_328_select_first_file;
-    messageOffset     = mp3Tracks::t_0;
-    preview           = true;
-    previewFromFolder = folder.folder;
+  case end_setupCard:
+    folder.folder = SM_setupCard::folder.folder;
+    special       = SM_setupCard::folder.special;
+    special2      = SM_setupCard::folder.special2;
+    mp3.enqueueMp3FolderTrack(mp3Tracks::t_936_batch_cards_intro);
+    timer.start(dfPlayer_timeUntilStarts);
+    current_subState = prepare_writeCard;
+    break;
 
-    VoiceMenu::entry();
-    current_subState = run_getSpecial;
-    break;
-  case run_getSpecial:
-    VoiceMenu::react(cmd);
-    if ((cmd == command::select) && (currentValue != 0)) {
-      special = currentValue;
-      current_subState = start_getSpecial2;
-    }
-    break;
-  case start_getSpecial2:
-    numberOfOptions   = mp3.getFolderTrackCount(folder.folder);
-    startMessage      = mp3Tracks::t_329_select_last_file;
-    messageOffset     = mp3Tracks::t_0;
-    preview           = true;
-    previewFromFolder = folder.folder;
-
-    VoiceMenu::entry();
-    currentValue      = special;
-
-    current_subState = run_getSpecial2;
-    break;
-  case run_getSpecial2:
-    VoiceMenu::react(cmd);
-    if ((cmd == command::select) && (currentValue != 0)) {
-      special2 = currentValue;
-      mp3.enqueueMp3FolderTrack(mp3Tracks::t_936_batch_cards_intro);
-      current_subState = prepare_writeCard;
-    }
-    break;
   case prepare_writeCard:
-    if (chip_card.isCardRemoved()) {
+    if (timer.isExpired() && not mp3.isPlaying() && chip_card.isCardRemoved()) {
       if (special > special2) {
         LOG(state_log, s_debug, str_Admin_CardsForFolder(), str_to(), str_Idle());
         transit<Admin_End>();
@@ -1410,7 +1436,7 @@ void Admin_InvButtons::entry() {
   preview           = false;
   previewFromFolder = 0;
 
-  VoiceMenu::entry(false);
+  VoiceMenu::entry();
 }
 
 void Admin_InvButtons::react(command_e const &cmd_e) {
@@ -1424,7 +1450,7 @@ void Admin_InvButtons::react(command_e const &cmd_e) {
   if (isAbort(cmd))
     return;
 
-  if ((cmd == command::select) && (currentValue != 0)) {
+  if (Commands::isSelect(cmd) && (currentValue != 0)) {
     switch (currentValue) {
     case 1: settings.invertVolumeButtons = false; break;
     case 2: settings.invertVolumeButtons = true ; break;
@@ -1460,7 +1486,7 @@ void Admin_LockAdmin::entry() {
   preview           = false;
   previewFromFolder = 0;
 
-  VoiceMenu::entry(false);
+  VoiceMenu::entry();
 
   current_subState = get_mode;
 }
@@ -1478,10 +1504,11 @@ void Admin_LockAdmin::react(command_e const &cmd_e) {
   switch(current_subState) {
   case get_mode:
     VoiceMenu::react(cmd);
-    if ((cmd == command::select) && (currentValue != 0)) {
+    if (Commands::isSelect(cmd) && (currentValue != 0)) {
       settings.adminMenuLocked = currentValue-1;
       if (settings.adminMenuLocked == 2) {
         current_subState = get_pin;
+        pin_number = 0;
         mp3.enqueueMp3FolderTrack(mp3Tracks::t_991_admin_pin);
       }
       else
@@ -1518,7 +1545,7 @@ void Admin_PauseIfCardRemoved::entry() {
   preview           = false;
   previewFromFolder = 0;
 
-  VoiceMenu::entry(false);
+  VoiceMenu::entry();
 }
 
 void Admin_PauseIfCardRemoved::react(command_e const &cmd_e) {
@@ -1532,7 +1559,7 @@ void Admin_PauseIfCardRemoved::react(command_e const &cmd_e) {
   if (isAbort(cmd))
     return;
 
-  if ((cmd == command::select) && (currentValue != 0)) {
+  if (Commands::isSelect(cmd) && (currentValue != 0)) {
     switch (currentValue) {
     case 1: settings.pauseWhenCardRemoved = false; break;
     case 2: settings.pauseWhenCardRemoved = true ; break;
@@ -1583,11 +1610,10 @@ template<SM_type SMT>
 uint8_t   VoiceMenu<SMT>::currentValue     ;
 
 template<SM_type SMT>
-Timer     VoiceMenu<SMT>::previewTimer     ;
-template<SM_type SMT>
 bool      VoiceMenu<SMT>::previewStarted   ;
 
 nfcTagObject Base::lastCardRead{};
 uint8_t Admin_Entry::lastCurrentValue{};
 Admin_SimpleSetting::Type Admin_SimpleSetting::type{};
 bool Admin_NewCard::return_to_idle{false};
+bool Admin_NewCard::wait_track_finished{false};

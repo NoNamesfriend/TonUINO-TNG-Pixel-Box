@@ -34,7 +34,7 @@ commandRaw Buttons::getCommandRaw() {
   if ((ignoreRelease || ignoreAll) && isNoButton()) {
     ignoreAll     = false;
     ignoreRelease = false;
-    longPressFactor = 1;
+    longPressFactor = 0;
     return commandRaw::none;
   }
 
@@ -53,8 +53,21 @@ commandRaw Buttons::getCommandRaw() {
     ignoreAll = true;
   }
 
+#ifdef FIVEBUTTONS
+  else if ((  buttonPause.pressedFor(buttonLongPress)
+           || buttonFour .pressedFor(buttonLongPress)
+           || buttonFive .pressedFor(buttonLongPress)
+      )
+     && buttonPause.isPressed()
+     && buttonFour .isPressed()
+     && buttonFive .isPressed()) {
+    ret = commandRaw::allLong;
+    ignoreAll = true;
+  }
+#endif
+
   else if ((  buttonUp   .pressedFor(buttonLongPress)
-      || buttonDown .pressedFor(buttonLongPress)
+           || buttonDown .pressedFor(buttonLongPress)
       )
      && buttonUp   .isPressed()
      && buttonDown .isPressed()) {
@@ -66,8 +79,8 @@ commandRaw Buttons::getCommandRaw() {
     ret = commandRaw::pause;
   }
 
-  else if (buttonPause.pressedFor(longPressFactor * buttonLongPress)) {
-    if (longPressFactor == 1)
+  else if (buttonPause.pressedFor(buttonLongPress + longPressFactor * buttonLongPressRepeat)) {
+    if (longPressFactor == 0)
       ret = commandRaw::pauseLong;
   }
 
@@ -75,8 +88,8 @@ commandRaw Buttons::getCommandRaw() {
     ret = commandRaw::up;
   }
 
-  else if (buttonUp.pressedFor(longPressFactor * buttonLongPress)) {
-    if (longPressFactor == 1)
+  else if (buttonUp.pressedFor(buttonLongPress + longPressFactor * buttonLongPressRepeat)) {
+    if (longPressFactor == 0)
       ret = commandRaw::upLong;
     else
       ret = commandRaw::upLongRepeat;
@@ -86,8 +99,8 @@ commandRaw Buttons::getCommandRaw() {
     ret = commandRaw::down;
   }
 
-  else if (buttonDown.pressedFor(longPressFactor * buttonLongPress)) {
-    if (longPressFactor == 1)
+  else if (buttonDown.pressedFor(buttonLongPress + longPressFactor * buttonLongPressRepeat)) {
+    if (longPressFactor == 0)
       ret = commandRaw::downLong;
     else
       ret = commandRaw::downLongRepeat;
@@ -98,8 +111,8 @@ commandRaw Buttons::getCommandRaw() {
     ret = commandRaw::four;
   }
 
-  else if (buttonFour.pressedFor(longPressFactor * buttonLongPress)) {
-    if (longPressFactor == 1)
+  else if (buttonFour.pressedFor(buttonLongPress + longPressFactor * buttonLongPressRepeat)) {
+    if (longPressFactor == 0)
       ret = commandRaw::fourLong;
     else
       ret = commandRaw::fourLongRepeat;
@@ -109,8 +122,8 @@ commandRaw Buttons::getCommandRaw() {
     ret = commandRaw::five;
   }
 
-  else if (buttonFive.pressedFor(longPressFactor * buttonLongPress)) {
-    if (longPressFactor == 1)
+  else if (buttonFive.pressedFor(buttonLongPress + longPressFactor * buttonLongPressRepeat)) {
+    if (longPressFactor == 0)
       ret = commandRaw::fiveLong;
     else
       ret = commandRaw::fiveLongRepeat;
@@ -136,7 +149,7 @@ commandRaw Buttons::getCommandRaw() {
   }
 
   if (ret != commandRaw::none) {
-    LOG(button_log, s_info, F("Button raw: "), static_cast<uint8_t>(ret));
+    LOG(button_log, s_debug, F("Button raw: "), static_cast<uint8_t>(ret));
   }
   return ret;
 }

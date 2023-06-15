@@ -23,6 +23,16 @@ const __FlashStringHelper* str_bis      () { return F(" bis "); }
 } // anonymous namespace
 
 void Tonuino::setup() {
+#ifdef BUTTONS3X3
+#ifdef ALLinONE_Plus
+  analogReference(INTERNAL2V5);
+#endif
+#ifdef ALLinONE
+  analogReference(INTERNAL2V048);
+  analogReadResolution(12);
+#endif
+#endif
+
   pinMode(shutdownPin  , OUTPUT);
   digitalWrite(shutdownPin, getLevel(shutdownPinType, level::inactive));
 
@@ -64,6 +74,9 @@ void Tonuino::setup() {
   digitalWrite(ampEnablePin, getLevel(ampEnablePinType, level::active));
 #endif
 
+  // ignore commands, if buttons already pressed during startup
+  commands.getCommandRaw();
+
   // Start Shortcut "at Startup" - e.g. Welcome Sound
   SM_tonuino::dispatch(command_e(commandRaw::start));
 }
@@ -93,7 +106,7 @@ void Tonuino::loop() {
 void Tonuino::playFolder() {
   LOG(play_log, s_debug, F("playFolder"));
   numTracksInFolder = mp3.getFolderTrackCount(myFolder->folder);
-  LOG(play_log, s_warning, numTracksInFolder, F(" files in folder "), myFolder->folder);
+  LOG(play_log, s_warning, numTracksInFolder, F(" tr in folder "), myFolder->folder);
   numTracksInFolder = min(numTracksInFolder, 0xffu);
   mp3.clearAllQueue();
 
@@ -186,6 +199,8 @@ void Tonuino::nextTrack(uint8_t tracks, bool fromOnPlayFinished) {
 
 void Tonuino::previousTrack(uint8_t tracks) {
   LOG(play_log, s_info, F("previousTrack"));
+  if (activeModifier->handlePrevious())
+    return;
   if (mp3.isPlayingFolder() && (myFolder->mode == pmode_t::hoerbuch || myFolder->mode == pmode_t::hoerbuch_1)) {
     const uint8_t trackToSave = (mp3.getCurrentTrack() > numTracksInFolder) ? mp3.getCurrentTrack()-1 : 1;
     settings.writeFolderSettingToFlash(myFolder->folder, trackToSave);
@@ -227,6 +242,7 @@ void Tonuino::shutdown() {
 
 #if defined ALLinONE || defined ALLinONE_Plus
   digitalWrite(ampEnablePin, getLevel(ampEnablePinType, level::inactive));
+  delay(1000);
 #endif
 
   // enter sleep state
@@ -251,60 +267,64 @@ bool Tonuino::specialCard(const nfcTagObject &nfcTag) {
     mp3.playAdvertisement(advertTracks::t_261_deactivate_mod_card, false/*olnyIfIsPlaying*/);
     return true;
   }
-  const Modifier *oldModifier = activeModifier;
 
   switch (nfcTag.nfcFolderSettings.mode) {
   case pmode_t::sleep_timer:  LOG(card_log, s_info, F("act. sleepTimer"));
-                             mp3.playAdvertisement(advertTracks::t_302_sleep            , false/*olnyIfIsPlaying*/);
-                             activeModifier = &sleepTimer;
-                             sleepTimer.start(nfcTag.nfcFolderSettings.special)               ;break;
+                              mp3.playAdvertisement(advertTracks::t_302_sleep            , false/*olnyIfIsPlaying*/);
+                              activeModifier = &sleepTimer;
+                              break;
+
   case pmode_t::freeze_dance: LOG(card_log, s_info, F("act. freezeDance"));
-                             mp3.playAdvertisement(advertTracks::t_300_freeze_into      , false/*olnyIfIsPlaying*/);
-                             activeModifier = &freezeDance;                                   ;break;
+                              mp3.playAdvertisement(advertTracks::t_300_freeze_into      , false/*olnyIfIsPlaying*/);
+                              activeModifier = &freezeDance;
+                              break;
+
   case pmode_t::locked:       LOG(card_log, s_info, F("act. locked"));
-                             mp3.playAdvertisement(advertTracks::t_303_locked           , false/*olnyIfIsPlaying*/);
-                             activeModifier = &locked                                         ;break;
+                              mp3.playAdvertisement(advertTracks::t_303_locked           , false/*olnyIfIsPlaying*/);
+                              activeModifier = &locked;
+                              break;
+
   case pmode_t::toddler:      LOG(card_log, s_info, F("act. toddlerMode"));
-                             mp3.playAdvertisement(advertTracks::t_304_buttonslocked    , false/*olnyIfIsPlaying*/);
-                             activeModifier = &toddlerMode                                    ;break;
+                              mp3.playAdvertisement(advertTracks::t_304_buttonslocked    , false/*olnyIfIsPlaying*/);
+                              activeModifier = &toddlerMode;
+                              break;
+
   case pmode_t::kindergarden: LOG(card_log, s_info, F("act. kindergardenMode"));
-                             mp3.playAdvertisement(advertTracks::t_305_kindergarden     , false/*olnyIfIsPlaying*/);
-                             activeModifier = &kindergardenMode                               ;break;
+                              mp3.playAdvertisement(advertTracks::t_305_kindergarden     , false/*olnyIfIsPlaying*/);
+                              activeModifier = &kindergardenMode;
+                              break;
+
   case pmode_t::repeat_single:LOG(card_log, s_info, F("act. repeatSingleModifier"));
-                             mp3.playAdvertisement(advertTracks::t_260_activate_mod_card, false/*olnyIfIsPlaying*/);
-                             activeModifier = &repeatSingleModifier                           ;break;
+                              mp3.playAdvertisement(advertTracks::t_260_activate_mod_card, false/*olnyIfIsPlaying*/);
+                              activeModifier = &repeatSingleModifier;
+                              break;
+
   #ifdef NeoPixels
   case pmode_t::night_light:  LOG(card_log, s_info, F("act. nightLight"));
                              mp3.playAdvertisement(advertTracks::t_260_activate_mod_card, false/*olnyIfIsPlaying*/);
                              activeModifier = &nightLight                                     ;break;
-  #endif                          
-  default:                   return false;
+  #endif  
+  
+  default:                    return false;
   }
-  if (oldModifier != activeModifier)
-    activeModifier->init();
+  activeModifier->init(nfcTag.nfcFolderSettings.special);
   return true;
 }
 
-// genereates a seed for our pseudo random number generator
-// https://rheingoldheavy.com/better-arduino-random-values/
-#define seedPin openAnalogPin
+// generates a seed for our pseudo random number generator
+// adapted from https://rheingoldheavy.com/better-arduino-random-values
 uint32_t Tonuino::generateRamdomSeed()
 {
-  uint8_t seedBitValue = 0;
-  uint8_t seedByteValue = 0;
-  uint32_t seedWordValue = 0;
+  uint32_t seedLongValue = 0;
 
-  for (uint8_t wordShift = 0; wordShift < 4; wordShift++) { // 4 bytes in a 32 bit word
-    for (uint8_t byteShift = 0; byteShift < 8; byteShift++) { // 8 bits in a byte
-      for (uint8_t bitSum = 0; bitSum <= 8; bitSum++) { // 8 samples of analog pin
-        seedBitValue = seedBitValue + (analogRead(seedPin) & 0x01); // Flip the coin eight times, adding the results together
-      }
-      delay(1);                                                             // Delay a single millisecond to allow the pin to fluctuate
-      seedByteValue = seedByteValue | ((seedBitValue & 0x01) << byteShift); // Build a stack of eight flipped coins
-      seedBitValue = 0;                                                     // Clear out the previous coin value
+  for (uint8_t bitShift = 0; bitShift < 32; bitShift++) { // 32 bits in a uint32_t
+    uint32_t seedBitValue  = 0;
+    for (uint8_t bitSum = 0; bitSum <= 8; bitSum++) {     // 8 samples of analog pin
+      seedBitValue += analogRead(openAnalogPin);          // Flip the coin eight times, adding the results together
     }
-    seedWordValue = seedWordValue | (uint32_t)seedByteValue << (8 * wordShift); // Build a stack of four sets of 8 coins (shifting right creates a larger number so cast to 32bit)
-    seedByteValue = 0;                                                          // Clear out the previous stack value
+    delay(1);                                             // Delay a single millisecond to allow the pin to fluctuate
+    seedLongValue |= ((seedBitValue & 0x01) << bitShift); // Build a stack of 32 flipped coins
   }
-  return (seedWordValue);
+  LOG(init_log, s_debug, F("RamdonSeed: "), seedLongValue);
+  return (seedLongValue);
 }

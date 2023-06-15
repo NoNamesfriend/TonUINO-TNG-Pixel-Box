@@ -103,7 +103,7 @@ public:
   bool isCardRemoved     () { return cardRemoved; }
 
 private:
-  friend class tonuino_test_fixture;
+  friend class tonuino_fixture;
   friend class chip_card_test_fixture;
 
   void stopCrypto1();

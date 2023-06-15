@@ -8,8 +8,8 @@ advert/0304_buttonslocked.mp3|Tasten sind nun gesperrt.
 advert/0305_kindergarden.mp3|KiTa-Modus aktiviert.
 advert/0306_night_light.mp3|Nachtlicht-Modus aktiviert.
 mp3/0300_new_tag.mp3|Oh, eine neue Karte!
-mp3/0301_select_folder.mp3|Verwende die Lautstärketasten um einen Ordner für die Karte auszuwählen. Drücke die Pausetaste um fortzufahren.
-mp3/0310.mp3|OK, wähle nun mit den Lautstärketasten den Wiedergabemodus aus.
+mp3/0301_select_folder.mp3|Ok, verwende nun die Lautstärketasten um einen Ordner für die Karte auszuwählen.
+mp3/0310.mp3|Wähle mit den Lautstärketasten den Wiedergabemodus aus. Drücke die Pausetaste um fortzufahren.
 mp3/0311_mode_random_episode.mp3|Hörspielmodus: Eine zufällige Datei aus dem Ordner wiedergeben
 mp3/0312_mode_album.mp3|Albummodus: Den kompletten Ordner wiedergeben
 mp3/0313_mode_party.mp3|Party Modus: Ordner zufällig wiedergeben.
@@ -32,6 +32,7 @@ mp3/0400_ok.mp3|OK. Ich habe die Karte konfiguriert.
 mp3/0401_error.mp3|Oh weh! Das hat leider nicht geklappt!
 mp3/0402_ok_settings.mp3|Ok, ich habe die Einstellungen gespeichert
 mp3/0800_waiting_for_card.mp3|Bitte lege nun die Karte auf!
+mp3/0801_remove_card.mp3|Bitte die Karte vom Leser entfernen!
 mp3/0802_reset_aborted.mp3|OK, ich habe den Vorgang abgebrochen.
 mp3/0900_admin.mp3|Willkommen im Admin Menü. Bitte wähle eine Funktion mit den Lautstärketasten aus und bestätige sie mit der Pausetaste! Durch einen langen Druck auf die Pausetaste kannst du den Vorgang abbrechen.
 mp3/0901_card_reset.mp3|Eine Karte neu konfigurieren.
@@ -40,7 +41,7 @@ mp3/0903_min_volume.mp3|Minimale Lautstärke festlegen.
 mp3/0904_init_volume.mp3|Lautstärke beim Start festlegen.
 mp3/0905_eq.mp3|EQ konfigurieren.
 mp3/0906_modifiers.mp3|Eine Modifikationskarte erstellen. Diese Karten werden nach den eigentlichen Musikkarten aufgelegt und ändern das Verhalten deines TonUINOs.
-mp3/0907_shortcut.mp3|Tasten mit einem Shortcut konfigurieren. Ein Shortcut wird über einen langen Tastendruck gestartet und funktioniert nur, wenn gerade nichts abgespielt wird.
+mp3/0907_shortcut.mp3|Shortcuts konfigurieren. Ein Shortcut wird über einen langen Tastendruck gestartet und funktioniert nur, wenn gerade nichts abgespielt wird.
 mp3/0908_standbytimer.mp3|Den Timer konfigurieren.
 mp3/0909_batch_cards.mp3|Einzelkarten für einen Ordner erstellen.
 mp3/0910_switch_volume.mp3|Funktion der Lautstärketasten umdrehen.
@@ -51,7 +52,7 @@ mp3/0914_neo_pixel_hue.mp3|Neo Pixel Farbe festlegen.
 mp3/0915_neo_pixel_base_value.mp3|Neo Pixel Farbe festlegen.
 mp3/0916_neo_pixel_play_animation.mp3|Neo Pixel Play Animation festlegen.
 mp3/0917_neo_pixel_night_light_brightness.mp3|Helligkeit für Nachtlicht festlegen.
-mp3/0919_continue_admin.mp3|und weiter im Admin Menü
+mp3/0919_continue_admin.mp3|und weiter im Admin Menü. Durch einen langen Druck auf die Pausetaste kannst du das Admin Menü abbrechen.
 mp3/0920_eq_intro.mp3|Bitte wähle eine Einstellung für den EQ mit den Lautstärketasten aus und bestätige sie mit der Pausetaste.
 mp3/0921_normal.mp3|Normal
 mp3/0922_pop.mp3|Pop
@@ -65,9 +66,9 @@ mp3/0932_init_volume_into.mp3|Lautstärke beim Start wählen und mit der Pauseta
 mp3/0933_switch_volume_intro.mp3|Möchtest du die Funktion der Lautstärketasten umdrehen? Du musst dann die Tasten lange drücken um ein Lied vor oder zurückzugehen.
 mp3/0934_no.mp3|Nein.
 mp3/0935_yes.mp3|Ja.
-mp3/0936_batch_cards_intro.mp3|OK, bitte lege nun nacheinander die Karten auf die Box. Ich werde die jeweilige Nummer vorher ansagen, damit du nicht durcheinander kommst. Zum Abbrechen einfach eine der Lautstärketasten drücken!
-mp3/0940_shortcut_into.mp3|Bitte wähle den Shortcut, den du konfigurieren möchtest, aus.
-mp3/0941_pause.mp3|Pausetaste
+mp3/0936_batch_cards_intro.mp3|OK, bitte lege nun nacheinander die Karten auf die Box. Ich werde die jeweilige Nummer vorher ansagen, damit du nicht durcheinander kommst. Zum Abbrechen einfach die Pause Taste lange drücken!
+mp3/0940_shortcut_into.mp3|Bitte wähle den Shortcut, den du konfigurieren möchtest, aus. Falls du das 3 mal 3 Button-board hast, kannst du auch dort eine Taste drücken. 
+mp3/0941_pause.mp3|Vor- und Zurücktaste
 mp3/0942_up.mp3|Vor- bzw. Lautertaste
 mp3/0943_down.mp3|Zurück- bzw. Leisertaste
 mp3/0944_startup.mp3|Shortcut beim Start festlegen
