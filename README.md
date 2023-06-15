@@ -5,9 +5,10 @@ Alle relevanten Informationen sind im Hauptrepositorie zu finden: https://github
 In diesem Fork wird die TonUINO Software mit der Integration von Adafruit NeoPixel erweitert.
 
 # Features
-Hier sind alle Features aufgelistet, die momentan in ergänzt wurden.
+Hier sind alle Features aufgelistet, die momentan ergänzt wurden.
 
 - Animation beim Starten der Box
+- Animation beim Abschalten der Box
 - Animation beim Auflegen einer neuen Karte
 - Animation während Song spielt
 - Animation wenn Song pausiert
