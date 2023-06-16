@@ -98,10 +98,9 @@ void NightLight::loop() {
   tonuino.getNeoPixels().displayNightLight();
 }
 
-void NightLight::init() {
+void NightLight::init(uint8_t placeholder) {
   mp3.playAdvertisement(advertTracks::t_306_night_light);
 }
-
 #endif
 
 //bool FeedbackModifier::handleVolumeDown() {

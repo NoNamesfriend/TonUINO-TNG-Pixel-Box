@@ -104,8 +104,9 @@ public:
 class NightLight: public Modifier {
 public:
   NightLight(Tonuino &tonuino, Mp3 &mp3): Modifier(tonuino, mp3) {}
-  void   loop     () final;
-  pmode_t getActive() final { return pmode_t::night_light; }
+  void    loop     ()        final;
+  pmode_t getActive()        final { return pmode_t::night_light; }
+  void    init     (uint8_t) final;
 };
 #endif
 
