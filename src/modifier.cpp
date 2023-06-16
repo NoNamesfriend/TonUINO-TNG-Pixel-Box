@@ -219,5 +219,4 @@ void NightLight::loop() {
 void NightLight::init(pmode_t, uint8_t) {
   mp3.playAdvertisement(advertTracks::t_350_night_light);
 }
-
 #endif
