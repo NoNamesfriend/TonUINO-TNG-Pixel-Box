@@ -583,6 +583,14 @@ inline constexpr uint8_t       usbAccessPin     = A5;
 inline constexpr levelType     usbAccessPinType = levelType::activeHigh;
 inline constexpr uint8_t       openAnalogPin    = A7;
 inline constexpr unsigned long cycleTime        = 50;
+
+// ####### NeoPixels#####################################
+
+#ifdef NeoPixels
+inline constexpr uint8_t NeoPixelPin = 18;
+inline constexpr uint8_t NeoPixelCount = 12;
+inline constexpr uint8_t NeoPixelBrightness = 20;
+#endif /* NeoPixels */
 #endif /* ALLinONE */
 
 // ####### some helper fuctions #####################################

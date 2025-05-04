@@ -6,6 +6,9 @@
 #include "chip_card.hpp"
 #include "mp3.hpp"
 #include "timer.hpp"
+#if defined NeoPixels
+#include "neo_pixels.hpp"
+#endif
 
 class Tonuino;
 

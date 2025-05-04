@@ -1660,8 +1660,8 @@ void Admin_SimpleSetting::entry() {
                       type == neoPixelBaseValue ? 16                                      :
                       type == neoPixelPlayAnimation ? static_cast<uint8_t>(Neo_pixels::PlayAnimation::NUMBER_OF_ANIMATIONS) :
                       type == neoPixelNightLightValue ? 16                                :
-                      0;
                       #endif
+                      0;
   startMessage      = type == maxVolume  ? mp3Tracks::t_930_max_volume_intro              :
                       type == minVolume  ? mp3Tracks::t_931_min_volume_into               :
                       type == initVolume ? mp3Tracks::t_932_init_volume_into              :
