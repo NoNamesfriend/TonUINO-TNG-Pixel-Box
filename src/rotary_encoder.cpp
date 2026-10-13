@@ -5,7 +5,8 @@
 #ifdef ROTARY_ENCODER
 #include "logger.hpp"
 
-volatile int8_t  RotaryEncoder::pos = 0;
+volatile int8_t RotaryEncoder::pos{};
+Timer           RotaryEncoder::debounceTimer{};
 
 #ifdef ROTARY_ENCODER_USES_TIMER
 volatile uint8_t RotaryEncoder::clk = 0;
@@ -19,7 +20,11 @@ void RotaryEncoder::timer_loop() {
 }
 #endif
 
-void RotaryEncoder::changed() {
+void IRAM_ATTR RotaryEncoder::changed() {
+  if (not debounceTimer.isExpired())
+    return;
+  debounceTimer.start(rotaryEncoderDebounce);
+
   const uint8_t dt = digitalRead(rotaryEncoderDtPin);
   if (dt == 0)
     --pos;
@@ -35,9 +40,12 @@ RotaryEncoder::RotaryEncoder(const Settings& settings)
 , vol_timer()
 , long_timer()
 #endif
+{}
+
+void RotaryEncoder::init()
 {
-  pinMode(rotaryEncoderClkPin, INPUT_PULLUP);
-  pinMode(rotaryEncoderDtPin , INPUT_PULLUP);
+  pinMode(rotaryEncoderClkPin, rotaryEncoderPullUp ? INPUT_PULLUP : INPUT);
+  pinMode(rotaryEncoderDtPin , rotaryEncoderPullUp ? INPUT_PULLUP : INPUT);
 
 #ifndef ROTARY_ENCODER_USES_TIMER
   attachInterrupt(digitalPinToInterrupt(rotaryEncoderClkPin), RotaryEncoder::changed, FALLING);

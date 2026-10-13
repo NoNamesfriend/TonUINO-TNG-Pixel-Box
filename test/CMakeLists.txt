@@ -25,4 +25,17 @@ build_and_run_tests(tonuino_AiO_plus      ALLinONE_Plus              )
 build_and_run_tests(tonuino_AiO_plus_3x3  ALLinONE_Plus BUTTONS3X3   )
 build_and_run_tests(tonuino_AiO           ALLinONE                   )
 build_and_run_tests(tonuino_AiO_3x3       ALLinONE BUTTONS3X3        )
+build_and_run_tests(pixel_box_AiO_plus   ALLinONE_Plus NeoPixels    )
+build_and_run_tests(pixel_box_AiO_3x3    ALLinONE_Plus NeoPixels BUTTONS3X3)
+
+# Exercise the Pixel Box paths with the exact feature flags of the default firmware.
+set(pixel_box_features ALLinONE_Plus NeoPixels DONT_ACCEPT_SAME_RFID_TWICE
+    RESUME_ON_SAME_RFID REPLAY_ON_PLAY_BUTTON QUIZ_GAME MEMORY_GAME
+    STORE_LAST_CARD BAT_VOLTAGE_MEASUREMENT)
+add_library(lib_pixel_box_features ${tonuino_sources} ${libs_tonuino_sources})
+target_compile_definitions(lib_pixel_box_features PRIVATE ${pixel_box_features})
+add_executable(test_pixel_box_features src/pixel_box_tests.cpp src/pixel_admin_tests.cpp)
+target_compile_definitions(test_pixel_box_features PRIVATE ${pixel_box_features})
+target_link_libraries(test_pixel_box_features lib_pixel_box_features gtest gtest_main)
+gtest_discover_tests(test_pixel_box_features TEST_PREFIX pixel_box_features:)
 

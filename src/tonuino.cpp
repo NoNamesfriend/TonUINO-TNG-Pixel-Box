@@ -1,9 +1,14 @@
 #include "tonuino.hpp"
 
 #include <Arduino.h>
+#ifndef TonUINO_Esp32
 #include <avr/sleep.h>
-#ifdef NeoPixels
-#include <Adafruit_NeoPixel.h>
+#else
+#include <esp_bt.h>
+#include <esp_sleep.h>
+#include <esp_bt_main.h>
+#include <esp_wifi.h>
+#include <esp_task_wdt.h>
 #endif
 
 #include "array.hpp"
@@ -19,6 +24,7 @@
 namespace {
 
 const __FlashStringHelper* str_bis      () { return F(" bis "); }
+const __FlashStringHelper* str_Space()  { return F(" ") ; }
 
 } // anonymous namespace
 
@@ -38,46 +44,67 @@ ISR(TIMER1_COMPA_vect){
 #endif
 
 void Tonuino::setup() {
+#ifdef USE_LED_BUTTONS
+  ledManager.begin();
+#endif
+
 #ifdef USE_TIMER
   setup_timer();
 #endif
 
-#if defined(BUTTONS3X3) or defined(BAT_VOLTAGE_MEASUREMENT)
+#if defined(BUTTONS3X3) or defined(BAT_VOLTAGE_MEASUREMENT) or defined(POTI)
   setup_adc();
 #endif
 
+  buttons.begin();
+#ifdef BUTTONS3X3
+  buttons3x3.begin();
+#endif
+
   pinMode(shutdownPin  , OUTPUT);
-  digitalWrite(shutdownPin, getLevel(shutdownPinType, level::inactive));
+  pin_set_inactive(shutdownPin, shutdownPinType);
+#ifdef POWER_HOLD_READY
+  pinMode(power_hold_ready_pin  , OUTPUT);
+  pin_set_active(power_hold_ready_pin, power_hold_ready_pin_type);
+#endif
 
   randomSeed(generateRamdomSeed());
 
   // speaker switch off
 #if defined SPKONOFF
   pinMode(ampEnablePin, OUTPUT);
-  digitalWrite(ampEnablePin, getLevel(ampEnablePinType, level::inactive));
+  pin_set_inactive(ampEnablePin, ampEnablePinType);
 #endif
 
 #if defined ALLinONE || defined ALLinONE_Plus
   pinMode(usbAccessPin, OUTPUT);
-  digitalWrite(usbAccessPin, getLevel(usbAccessPinType, level::inactive));
+  pin_set_inactive(usbAccessPin, usbAccessPinType);
 #endif
 
 #ifdef SPECIAL_START_SHORTCUT
-  pinMode(specialStartShortcutPin, INPUT);
+  input_pin_mode(specialStartShortcutPin, specialStartShortcutPinType);
 #endif
 
 #ifdef BT_MODULE
   pinMode(btModuleOnPin          , OUTPUT);
   pinMode(btModulePairingPin     , OUTPUT);
-  digitalWrite(btModuleOnPin     , getLevel(btModuleOnPinType     , level::inactive));
-  digitalWrite(btModulePairingPin, getLevel(btModulePairingPinType, level::inactive));
+  pin_set_inactive(btModuleOnPin     , btModuleOnPinType     );
+  pin_set_inactive(btModulePairingPin, btModulePairingPinType);
 #endif // BT_MODULE
+
+#ifdef ROTARY_ENCODER
+  rotaryEncoder.init();
+#endif
 
 #ifdef NEO_RING
   ring.init();
   ring.call_on_startup();
 #endif
 
+  settings.init();
+  // RESET flash if all buttons pressed
+  if (buttons.isReset())
+    settings.clearEEPROM();
   // load Settings from EEPROM
   settings.loadSettingsFromFlash();
 #ifdef STORE_LAST_CARD
@@ -85,14 +112,14 @@ void Tonuino::setup() {
   LOG(init_log, s_debug, F("get last, folder: "), myFolder.folder, F(", mode: "), static_cast<uint8_t>(myFolder.mode));
 #endif
 
+#ifdef TonUINO_Esp32
+  esp_task_wdt_init(120, true); // increase the default wd timeout
+  // init webservice
+  webservice.init();
+#endif
+
   // init NFC reader
   chip_card.initCard();
-
-  // RESET flash if all buttons pressed
-  if (buttons.isReset()) {
-    settings.clearEEPROM();
-    settings.loadSettingsFromFlash();
-  }
 
   // init DFPlayer Mini
   mp3.init();
@@ -109,16 +136,17 @@ void Tonuino::setup() {
 
   // speaker switch on
 #if defined SPKONOFF
-  digitalWrite(ampEnablePin, getLevel(ampEnablePinType, level::active));
+  pin_set_active(ampEnablePin, ampEnablePinType);
 #endif
 
   // Start Shortcut "at Startup" - e.g. Welcome Sound
 #ifdef SPECIAL_START_SHORTCUT
 
 #ifdef TonUINO_Classic
-  if (getLevel(specialStartShortcutPinType, (analogRead(specialStartShortcutPin)<512)?0:1) == level::active) {
+  // You cannot digitalRead the A6 on Arduino Nano
+  if ((analogRead(specialStartShortcutPin)<512)?0:1 == level2int(specialStartShortcutPinType, level::  active)) {
 #else // TonUINO_Classic
-  if (getLevel(specialStartShortcutPinType, digitalRead(specialStartShortcutPin)) == level::active) {
+  if (digitalRead(specialStartShortcutPin) == level2int(specialStartShortcutPinType, level::  active)) {
 #endif // TonUINO_Classic
 
 #ifdef HPJACKDETECT
@@ -179,13 +207,11 @@ void Tonuino::loop() {
   unsigned long  start_cycle = millis();
   checkStandby();
 
-  static bool is_playing = false;
-  LOG_CODE(play_log, s_info, {
-    if (is_playing != mp3.isPlaying()) {
-      is_playing = !is_playing;
-      LOG(play_log, s_info, F("isPlaying: "), is_playing);
-    }
-  } );
+  if (request_shutdown) {
+    delay(100);
+    shutdown();
+    delay(1000);
+  }
 
 #ifdef BAT_VOLTAGE_MEASUREMENT
   if (batVoltage.check())
@@ -243,11 +269,54 @@ void Tonuino::loop() {
     ring.call_on_admin();
 #endif // NEO_RING
 
+#ifdef USE_LED_BUTTONS
+  if (commands.getLastCommand() != command::none)
+    Tonuino::getTonuino().getLedManager().handleBlinkOnce();
+
+  if (SM_tonuino::is_in_state<Idle>())
+    ledManager.setState(ledState::await_input);
+  else if (SM_tonuino::is_in_state<StartPlay<Play>>()
+#ifdef QUIZ_GAME
+        || SM_tonuino::is_in_state<StartPlay<Quiz>>()
+#endif
+#ifdef MEMORY_GAME
+        || SM_tonuino::is_in_state<StartPlay<Memory>>()
+#endif
+#ifdef TEAPOT_GAME
+        || SM_tonuino::is_in_state<StartPlay<Teapot>>()
+#endif
+  )
+    ledManager.setState(ledState::startup);
+  else if (SM_tonuino::is_in_state<Play>())
+    ledManager.setState(ledState::playing);
+  else if (SM_tonuino::is_in_state<Pause>())
+    ledManager.setState(ledState::paused);
+#ifdef QUIZ_GAME
+  else if (SM_tonuino::is_in_state<Quiz>())
+    ledManager.setState(ledState::playing); // TODO Should be changed to another state.
+#endif // QUIZ_GAME
+#ifdef MEMORY_GAME
+  else if (SM_tonuino::is_in_state<Memory>())
+    ledManager.setState(ledState::playing); // TODO should be changed to another state
+#endif // MEMORY_GAME
+#ifdef TEAPOT_GAME
+  else if (SM_tonuino::is_in_state<Teapot>())
+    ledManager.setState(ledState::playing); // TODO should be changed to another state
+#endif // TEAPOT_GAME
+  else // admin menu
+    ledManager.setState(ledState::await_input);
+
+  ledManager.update();
+#endif // USE_LED_BUTTONS
+
 #ifdef BT_MODULE
   if (btModulePairingTimer.isActive() && btModulePairingTimer.isExpired())
-    digitalWrite(btModulePairingPin, getLevel(btModulePairingPinType, level::inactive));
+    pin_set_inactive(btModulePairingPin, btModulePairingPinType);
 #endif // BT_MODULE
 
+#ifdef TonUINO_Esp32
+  webservice.loop();
+#endif
 
   unsigned long  stop_cycle = millis();
 
@@ -259,48 +328,53 @@ void Tonuino::playFolder() {
   LOG(play_log, s_debug, F("playFolder"));
   numTracksInFolder = mp3.getFolderTrackCount(myFolder.folder);
   LOG(play_log, s_warning, numTracksInFolder, F(" tr in folder "), myFolder.folder);
-  numTracksInFolder = min(numTracksInFolder, 0xffu);
+  numTracksInFolder = min(numTracksInFolder, static_cast<uint16_t>(0xffu));
   mp3.clearAllQueue();
+  if (numTracksInFolder == 0)
+    return;
+
+  uint8_t first_track = 1;
+  uint8_t last_track  = numTracksInFolder;
 
   switch (myFolder.mode) {
 
-  case pmode_t::hoerspiel:
-    // Hörspielmodus: eine zufällige Datei aus dem Ordner
-    myFolder.special = 1;
-    myFolder.special2 = numTracksInFolder;
-    __attribute__ ((fallthrough));
-    /* no break */
   case pmode_t::hoerspiel_vb:
     // Spezialmodus Von-Bin: Hörspiel: eine zufällige Datei aus dem Ordner
-    LOG(play_log, s_debug, F("Hörspiel"));
-    LOG(play_log, s_debug, myFolder.special, str_bis(), myFolder.special2);
-    mp3.enqueueTrack(myFolder.folder, random(myFolder.special, myFolder.special2 + 1));
-    break;
-
-  case pmode_t::album:
-    // Album Modus: kompletten Ordner spielen
-    myFolder.special = 1;
-    myFolder.special2 = numTracksInFolder;
+    first_track = myFolder.special;
+    last_track  = myFolder.special2;
     __attribute__ ((fallthrough));
     /* no break */
+  case pmode_t::hoerspiel:
+    // Hörspielmodus: eine zufällige Datei aus dem Ordner
+    LOG(play_log, s_debug, F("Hörspiel"));
+    LOG(play_log, s_debug, first_track, str_bis(), last_track);
+    mp3.enqueueTrack(myFolder.folder, random(first_track, last_track + 1));
+    break;
+
   case pmode_t::album_vb:
     // Spezialmodus Von-Bis: Album: alle Dateien zwischen Start und Ende spielen
-    LOG(play_log, s_debug, F("Album"));
-    LOG(play_log, s_debug, myFolder.special, str_bis() , myFolder.special2);
-    mp3.enqueueTrack(myFolder.folder, myFolder.special, myFolder.special2);
-    break;
-
-  case pmode_t::party:
-    // Party Modus: Ordner in zufälliger Reihenfolge
-    myFolder.special = 1;
-    myFolder.special2 = numTracksInFolder;
+    first_track = myFolder.special;
+    last_track  = myFolder.special2;
     __attribute__ ((fallthrough));
     /* no break */
+  case pmode_t::album:
+    // Album Modus: kompletten Ordner spielen
+    LOG(play_log, s_debug, F("Album"));
+    LOG(play_log, s_debug, first_track, str_bis() , last_track);
+    mp3.enqueueTrack(myFolder.folder, first_track, last_track);
+    break;
+
   case pmode_t::party_vb:
     // Spezialmodus Von-Bis: Party Ordner in zufälliger Reihenfolge
+    first_track = myFolder.special;
+    last_track  = myFolder.special2;
+    __attribute__ ((fallthrough));
+    /* no break */
+  case pmode_t::party:
+    // Party Modus: Ordner in zufälliger Reihenfolge
     LOG(play_log, s_debug, F("Party"));
-    LOG(play_log, s_debug, myFolder.special, str_bis(), myFolder.special2);
-    mp3.enqueueTrack(myFolder.folder, myFolder.special, myFolder.special2);
+    LOG(play_log, s_debug, first_track, str_bis(), last_track);
+    mp3.enqueueTrack(myFolder.folder, first_track, last_track);
     mp3.shuffleQueue();
     mp3.setEndless();
     break;
@@ -311,26 +385,76 @@ void Tonuino::playFolder() {
     mp3.enqueueTrack(myFolder.folder, myFolder.special);
     break;
 
+  case pmode_t::hoerbuch_vb:
+    first_track = myFolder.special;
+    last_track  = myFolder.special2;
+    __attribute__ ((fallthrough));
+    /* no break */
   case pmode_t::hoerbuch:
   case pmode_t::hoerbuch_1:
+  // Hörbuch Modus: kompletten Ordner spielen und Fortschritt merken (oder von-bis oder nur eine Datei)
   {
-    // Hörbuch Modus: kompletten Ordner spielen und Fortschritt merken (oder nur eine Datei)
+    if ((myFolder.mode != pmode_t::hoerbuch_vb) && myFolder.special2 > 0) {
+#ifdef FOLDER_QUEUE_HOERBUCH
+      if (lastMyFolder == myFolder && SM_tonuino::startPlayFromPlay) {
+        // same card again in Play state: reset progress to choose new folder
+        LOG(play_log, s_info, F("Hörbuch - selbe Karte"));
+        settings.writeFolderSettingToFlash(folderForHoerbuch, 1);
+      }
+      lastMyFolder = myFolder;
+#endif
+      folderForHoerbuch = 0;
+      for (uint8_t f = myFolder.folder; f <= myFolder.folder + myFolder.special2; ++f) {
+          uint8_t start = settings.readFolderSettingFromFlash(f);
+        if ((start > 1) && (start != 0xff)) {
+          folderForHoerbuch = f;
+          LOG(play_log, s_info, F("Hörbuch - not finished for folder: "), folderForHoerbuch);
+          break;
+        }
+      }
+#ifdef FOLDER_QUEUE_HOERBUCH
+      if (folder_q.size() == 0) {
+        for (uint8_t f = myFolder.folder; f < myFolder.folder + myFolder.special2+1; ++f) {
+          if (f != folderForHoerbuch)
+            folder_q.push(f);
+        }
+        folder_q.shuffle();
+        LOG(play_log, s_info, F("shuffled folder "), lf_no);
+        for (uint8_t i = 0; i<folder_q.size(); ++i)
+          LOG(play_log, s_info, folder_q.get(i), str_Space(), lf_no);
+        LOG(play_log, s_info, str_Space());
+      }
+#endif
+      if (folderForHoerbuch == 0) {
+#ifdef FOLDER_QUEUE_HOERBUCH
+        folderForHoerbuch = folder_q.pop();
+#else
+        folderForHoerbuch = random(myFolder.folder, myFolder.folder + myFolder.special2+1);
+#endif
+        LOG(play_log, s_info, F("Hörbuch - select folder: "), folderForHoerbuch);
+      }
+      numTracksInFolder = mp3.getFolderTrackCount(folderForHoerbuch);
+      last_track = numTracksInFolder;
+      LOG(play_log, s_warning, numTracksInFolder, F(" tr in folder "), folderForHoerbuch);
+    }
+    else {
+      folderForHoerbuch = myFolder.folder;
+    }
     LOG(play_log, s_debug, F("Hörbuch"));
-    uint16_t startTrack = settings.readFolderSettingFromFlash(myFolder.folder);
-    if ((startTrack == 0) || (startTrack > numTracksInFolder))
-      startTrack = 1;
-    mp3.enqueueTrack(myFolder.folder, 1, numTracksInFolder, startTrack-1);
+    LOG(play_log, s_debug, first_track, str_bis(), last_track);
+    uint16_t startTrack = settings.readFolderSettingFromFlash(folderForHoerbuch);
+    if ((startTrack < first_track) || (startTrack > last_track))
+      startTrack = first_track;
+    mp3.enqueueTrack(folderForHoerbuch, first_track, last_track, startTrack-first_track);
   }
-    break;
-
-  case pmode_t::quiz_game:
-  case pmode_t::memory_game:
-    // Nothing to enqueue here
     break;
 
   default:
+    // Nothing to enqueue here
     break;
   }
+  if (endless)
+    mp3.setEndless();
 }
 
 void Tonuino::playTrackNumber () {
@@ -343,9 +467,9 @@ void Tonuino::playTrackNumber () {
 // Leider kann das Modul selbst keine Queue abspielen, daher müssen wir selbst die Queue verwalten
 void Tonuino::nextTrack(uint8_t tracks, bool fromOnPlayFinished) {
   LOG(play_log, s_debug, F("nextTrack"));
-  if (fromOnPlayFinished && mp3.isPlayingFolder() && (myFolder.mode == pmode_t::hoerbuch || myFolder.mode == pmode_t::hoerbuch_1)) {
+  if (fromOnPlayFinished && mp3.isPlayingFolder() && (myFolder.mode == pmode_t::hoerbuch || myFolder.mode == pmode_t::hoerbuch_1 || myFolder.mode == pmode_t::hoerbuch_vb)) {
     const uint8_t trackToSave = (mp3.getCurrentTrack() < numTracksInFolder) ? mp3.getCurrentTrack()+1 : 1;
-    settings.writeFolderSettingToFlash(myFolder.folder, trackToSave);
+    settings.writeFolderSettingToFlash(folderForHoerbuch, trackToSave);
     if (myFolder.mode == pmode_t::hoerbuch_1) {
       if (myFolder.special > 0)
         --myFolder.special;
@@ -353,11 +477,11 @@ void Tonuino::nextTrack(uint8_t tracks, bool fromOnPlayFinished) {
         mp3.clearFolderQueue();
     }
   }
-  if (activeModifier->handleNext())
+  if (mp3.isPlayingFolder() && activeModifier->handleNext())
     return;
   mp3.playNext(tracks, fromOnPlayFinished);
-  if (not fromOnPlayFinished && mp3.isPlayingFolder() && (myFolder.mode == pmode_t::hoerbuch || myFolder.mode == pmode_t::hoerbuch_1)) {
-    settings.writeFolderSettingToFlash(myFolder.folder, mp3.getCurrentTrack());
+  if (not fromOnPlayFinished && mp3.isPlayingFolder() && (myFolder.mode == pmode_t::hoerbuch || myFolder.mode == pmode_t::hoerbuch_1 || myFolder.mode == pmode_t::hoerbuch_vb)) {
+    settings.writeFolderSettingToFlash(folderForHoerbuch, mp3.getCurrentTrack());
   }
 }
 
@@ -366,13 +490,23 @@ void Tonuino::previousTrack(uint8_t tracks) {
   if (activeModifier->handlePrevious())
     return;
   mp3.playPrevious(tracks);
-  if (mp3.isPlayingFolder() && (myFolder.mode == pmode_t::hoerbuch || myFolder.mode == pmode_t::hoerbuch_1)) {
-    settings.writeFolderSettingToFlash(myFolder.folder, mp3.getCurrentTrack());
+  if (mp3.isPlayingFolder() && (myFolder.mode == pmode_t::hoerbuch || myFolder.mode == pmode_t::hoerbuch_1 || myFolder.mode == pmode_t::hoerbuch_vb)) {
+    settings.writeFolderSettingToFlash(folderForHoerbuch, mp3.getCurrentTrack());
+  }
+}
+
+void Tonuino::jumpToTrack(uint8_t track) {
+  LOG(play_log, s_debug, F("jumpToTrack"));
+  mp3.jumpTo(track);
+  if (mp3.isPlayingFolder() && (myFolder.mode == pmode_t::hoerbuch || myFolder.mode == pmode_t::hoerbuch_1 || myFolder.mode == pmode_t::hoerbuch_vb)) {
+    settings.writeFolderSettingToFlash(folderForHoerbuch, mp3.getCurrentTrack());
   }
 }
 
 // functions for the standby timer (e.g.. with Pololu-Switch or Mosfet)
 void Tonuino::setStandbyTimer() {
+  if (isStandbyTimerOff())
+    return;
   LOG(standby_log, s_debug, F("setStandbyTimer"));
   if (settings.standbyTimer != 0 && not standbyTimer.isActive()) {
     standbyTimer.start(settings.standbyTimer * 60 * 1000);
@@ -382,8 +516,8 @@ void Tonuino::setStandbyTimer() {
 
 void Tonuino::disableStandbyTimer() {
   LOG(standby_log, s_debug, F("disableStandbyTimer"));
+  standbyTimer.stop();
   if (settings.standbyTimer != 0) {
-    standbyTimer.stop();
     LOG(standby_log, s_info, F("timer stopped"));
   }
 }
@@ -397,6 +531,10 @@ void Tonuino::checkStandby() {
 void Tonuino::shutdown() {
   LOG(standby_log, s_info, F("power off!"));
 
+#ifdef ESP32
+  webservice.push_shutdown();
+#endif
+
 #ifdef NEO_RING
   ring.call_on_sleep();
 #endif
@@ -404,18 +542,21 @@ void Tonuino::shutdown() {
 #ifdef NeoPixels
   neo_pixels.shutdown();
 #endif
+#ifdef USE_LED_BUTTONS
+  ledManager.setState(ledState::shutdown);
+#endif
 
 #if defined SPKONOFF
-  digitalWrite(ampEnablePin, getLevel(ampEnablePinType, level::inactive));
+  pin_set_inactive(ampEnablePin, ampEnablePinType);
   delay(1000);
 #endif
 
   // enter sleep state
-  digitalWrite(shutdownPin, getLevel(shutdownPinType, level::active));
+  pin_set_active(shutdownPin, shutdownPinType);
   delay(500);
 
 #if defined(USE_POLOLU_SHUTDOWN) or defined(USE_TRAEGER_PLATINE_SHUTDOWN)
-  return;
+  while (true) delay(500);
 #endif
 
   // http://discourse.voss.earth/t/intenso-s10000-powerbank-automatische-abschaltung-software-only/805
@@ -423,83 +564,126 @@ void Tonuino::shutdown() {
   chip_card.sleepCard();
   mp3.sleep();
 
+#ifndef TonUINO_Esp32
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
   cli();  // Disable interrupts
   sleep_mode();
+#else
+  esp_bluedroid_disable();
+  esp_bluedroid_deinit();
+  esp_bt_controller_disable();
+  esp_bt_controller_deinit();
+  esp_wifi_stop();
+  esp_deep_sleep_start();
+#endif
 }
 
 #ifdef BT_MODULE
 void Tonuino::switchBtModuleOnOff() {
   btModuleOn = not btModuleOn;
   if (btModuleOn)
-    mp3.playAdvertisement(advertTracks::t_320_bt_on , false/*olnyIfIsPlaying*/);
+    mp3.playAdvertisement(advertTracks::t_320_bt_on , false/*onlyIfIsPlaying*/);
   else
-    mp3.playAdvertisement(advertTracks::t_321_bt_off, false/*olnyIfIsPlaying*/);
-  digitalWrite(btModuleOnPin, getLevel(btModuleOnPinType, btModuleOn ? level::active : level::inactive));
+    mp3.playAdvertisement(advertTracks::t_321_bt_off, false/*onlyIfIsPlaying*/);
+  pin_set_level(btModuleOnPin, btModuleOnPinType, btModuleOn ? level::active : level::inactive);
 }
 
 void Tonuino::btModulePairing() {
   if (not btModulePairingTimer.isActive()) {
-    mp3.playAdvertisement(advertTracks::t_322_bt_pairing, false/*olnyIfIsPlaying*/);
+    mp3.playAdvertisement(advertTracks::t_322_bt_pairing, false/*onlyIfIsPlaying*/);
     btModulePairingTimer.start(btModulePairingPulse);
-    digitalWrite(btModulePairingPin, getLevel(btModulePairingPinType, level::active));
+    pin_set_active(btModulePairingPin, btModulePairingPinType);
   }
 }
 #endif // BT_MODULE
+
+void Tonuino::switchStandbyTimerOnOff() {
+  standbyTimerOff = not standbyTimerOff;
+  if (standbyTimerOff) {
+    disableStandbyTimer();
+    mp3.playAdvertisement(advertTracks::t_323_standby_timer_off , false/*onlyIfIsPlaying*/);
+  }
+  else {
+    if (SM_tonuino::is_in_state<Pause>() || SM_tonuino::is_in_state<Idle>())
+      setStandbyTimer();
+    mp3.playAdvertisement(advertTracks::t_324_standby_timer_on, false/*onlyIfIsPlaying*/);
+  }
+
+}
+
+void Tonuino::switchEndlessOnOff() {
+  if (((myFolder.mode == pmode_t::party) || (myFolder.mode == pmode_t::party_vb)) && mp3.isEndless())
+    endless = true;
+
+  endless = not endless;
+  if (endless)
+    mp3.playAdvertisement(advertTracks::t_326_endless_on , false/*onlyIfIsPlaying*/);
+  else
+    mp3.playAdvertisement(advertTracks::t_325_endless_off, false/*onlyIfIsPlaying*/);
+
+  mp3.setEndless(endless);
+}
 
 bool Tonuino::specialCard(const folderSettings &nfcTag) {
   LOG(card_log, s_debug, F("special card, mode = "), static_cast<uint8_t>(nfcTag.mode));
   if (activeModifier->getActive() == nfcTag.mode) {
     resetActiveModifier();
     LOG(card_log, s_info, F("modifier removed"));
-    mp3.playAdvertisement(advertTracks::t_261_deactivate_mod_card, false/*olnyIfIsPlaying*/);
+    mp3.playAdvertisement(advertTracks::t_261_deactivate_mod_card, false/*onlyIfIsPlaying*/);
     return true;
   }
 
 #ifdef QUIZ_GAME
-  if (SM_tonuino::is_in_state<Quiz>() && nfcTag.mode != pmode_t::bt_module)
+  if (SM_tonuino::is_in_state<Quiz>() && nfcTag.mode != pmode_t::bt_module && nfcTag.mode != pmode_t::stdb_timer_sw && nfcTag.mode != pmode_t::endless_sw)
     return false;
 #endif // QUIZ_GAME
 #ifdef MEMORY_GAME
-  if (SM_tonuino::is_in_state<Memory>() && nfcTag.mode != pmode_t::bt_module)
+  if (SM_tonuino::is_in_state<Memory>() && nfcTag.mode != pmode_t::bt_module && nfcTag.mode != pmode_t::stdb_timer_sw && nfcTag.mode != pmode_t::endless_sw)
     return false;
 #endif // MEMORY_GAME
 
 
   switch (nfcTag.mode) {
   case pmode_t::sleep_timer:  LOG(card_log, s_info, F("act. sleepTimer"));
-                              mp3.playAdvertisement(advertTracks::t_302_sleep            , false/*olnyIfIsPlaying*/);
+                              mp3.playAdvertisement(advertTracks::t_302_sleep            , false/*onlyIfIsPlaying*/);
                               activeModifier = &sleepTimer;
                               break;
 
   case pmode_t::freeze_dance: LOG(card_log, s_info, F("act. freezeDance"));
-                              mp3.playAdvertisement(advertTracks::t_300_freeze_into      , false/*olnyIfIsPlaying*/);
+                              mp3.playAdvertisement(advertTracks::t_300_freeze_into      , false/*onlyIfIsPlaying*/);
                               activeModifier = &danceGame;
                               break;
 
   case pmode_t::fi_wa_ai:     LOG(card_log, s_info, F("act. FeWaLu"));
-                              mp3.playAdvertisement(advertTracks::t_303_fi_wa_ai         , false/*olnyIfIsPlaying*/);
+                              mp3.playAdvertisement(advertTracks::t_303_fi_wa_ai         , false/*onlyIfIsPlaying*/);
                               activeModifier = &danceGame;
                               break;
 
   case pmode_t::toddler:      LOG(card_log, s_info, F("act. toddlerMode"));
-                              mp3.playAdvertisement(advertTracks::t_304_buttonslocked    , false/*olnyIfIsPlaying*/);
+                              mp3.playAdvertisement(advertTracks::t_304_buttonslocked    , false/*onlyIfIsPlaying*/);
                               activeModifier = &toddlerMode;
                               break;
 
   case pmode_t::kindergarden: LOG(card_log, s_info, F("act. kindergarden"));
-                              mp3.playAdvertisement(advertTracks::t_305_kindergarden     , false/*olnyIfIsPlaying*/);
+                              mp3.playAdvertisement(advertTracks::t_305_kindergarden     , false/*onlyIfIsPlaying*/);
                               activeModifier = &kindergardenMode;
                               break;
 
   case pmode_t::repeat_single:LOG(card_log, s_info, F("act. repeatSingle"));
-                              mp3.playAdvertisement(advertTracks::t_260_activate_mod_card, false/*olnyIfIsPlaying*/);
+                              mp3.playAdvertisement(advertTracks::t_260_activate_mod_card, false/*onlyIfIsPlaying*/);
                               activeModifier = &repeatSingleModifier;
                               break;
 
+#ifdef MODIFICATION_CARD_PAUSE_AFTER_TRACK
+  case pmode_t::pause_aft_tr: LOG(card_log, s_info, F("act. pauseAftTr"));
+                              mp3.playAdvertisement(advertTracks::t_260_activate_mod_card, false/*onlyIfIsPlaying*/);
+                              activeModifier = &pauseAfterTrack;
+                              break;
+#endif
+
 #ifdef MODIFICATION_CARD_JUKEBOX
   case pmode_t::jukebox:      LOG(card_log, s_info, F("act. jukebox"));
-                              mp3.playAdvertisement(advertTracks::t_309_jukebox          , false/*olnyIfIsPlaying*/);
+                              mp3.playAdvertisement(advertTracks::t_309_jukebox          , false/*onlyIfIsPlaying*/);
                               activeModifier = &jukeboxModifier;
                               break;
 #endif
@@ -512,12 +696,21 @@ bool Tonuino::specialCard(const folderSettings &nfcTag) {
 
 #ifdef NeoPixels
 case pmode_t::night_light:  LOG(card_log, s_info, F("act. nightLight"));
-                           mp3.playAdvertisement(advertTracks::t_260_activate_mod_card, false/*olnyIfIsPlaying*/);
                            activeModifier = &nightLight                                     ;break;
-#endif      
+#endif
+  case pmode_t::stdb_timer_sw:LOG(card_log, s_info, F("toggle std timer from "), standbyTimerOff);
+                              switchStandbyTimerOnOff();
+                              return true;
+
+  case pmode_t::endless_sw:   LOG(card_log, s_info, F("toggle endless from "), mp3.isEndless());
+                              switchEndlessOnOff();
+                              return true;
 
   default:                    return false;
   }
+#ifdef NeoPixels
+  neo_pixels.setNightLight(activeModifier == &nightLight);
+#endif
   activeModifier->init(nfcTag.mode, nfcTag.special);
   return true;
 }

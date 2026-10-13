@@ -12,6 +12,10 @@ advert/0308_air.mp3|Wind....10s....and on we go!
 advert/0320_bt_on.mp3|Bluetooth switched on
 advert/0321_bt_off.mp3|Bluetooth switched off
 advert/0322_bt_pairing.mp3|Bluetooth will be reconnected
+advert/0323_standby_timer_off.mp3|Standby timer switched off
+advert/0324_standby_timer_on.mp3|Standby timer switched on
+advert/0325_endless_off.mp3|The endless mode switched off
+advert/0326_endless_on.mp3|The endless mode switched on
 mp3/0300_new_tag.mp3|Oh, a new card!
 mp3/0301_select_folder.mp3|Ok, now use the volume keys to select a folder for the card.
 mp3/0310.mp3|Use the volume keys to select the playback mode. Press the pause button to continue.
@@ -29,6 +33,8 @@ mp3/0321_mode_repeat_last_card.mp3|Repeat card mode: the last card or shortcut i
 mp3/0322_mode_quiz_game.mp3|Quiz play mode: play a quiz.
 mp3/0323_mode_memory_game.mp3|Memory play mode: play a memory memory game.
 mp3/0324_mode_switch_bt.mp3|Switch Bluetooth: Switch on or off Bluetooth.
+mp3/0325_mode_teapot_game.mp3|Teapot play mode: play a Teapot game.
+mp3/0326_special_audio_book.mp3|Special mode From-To, Audiobook: Play all files between the start and end file and save the progress.
 mp3/0327_select_file.mp3|OK, now please select the file with the volume keys.
 mp3/0328_select_first_file.mp3|OK, now please select the start file with the volume keys.
 mp3/0329_select_last_file.mp3|Now please select the final file with the volume keys.
@@ -60,6 +66,9 @@ mp3/0521_memory_game_ok.mp3|Yes, the two cards belong together.
 mp3/0522_memory_game_bad.mp3|Oh no, the cards don't fit. 
 mp3/0523_memory_game_1.mp3|Please turn over the first memory card. 
 mp3/0524_memory_game_2.mp3|Please turn over the second memory card. 
+mp3/0530_teapot_game_intro.mp3|You are now playing the Teekesselchen guessing game. Press and hold the pause button to hear a new description. Then press the pause, back, forward, volume down, or volume up button to hear more descriptions. When you think you have guessed the correct term, press and hold the pause button to hear the answer. Repeat as often as you like. You can end the game by pressing and holding the forward or back button.  
+mp3/0531_teapot_game_continue.mp3|Continue by long-pressing the pause button. 
+mp3/0532_teapot_game_solution.mp3|Here is the solution.
 mp3/0800_waiting_for_card.mp3|Please put the card on now!
 mp3/0801_remove_card.mp3|Please remove the card from the reader!
 mp3/0802_reset_aborted.mp3|OK, I have canceled the process.
@@ -117,11 +126,15 @@ mp3/0974_modifier_Toddler.mp3|Toddler mode - All keys of the TonUINO are locked 
 mp3/0975_modifier_KinderGarden.mp3|Kindergarten mode - In order to avoid conflicts, new cards are not played immediately, but only after the current song is over. The forward and back buttons are locked.
 mp3/0976_modifier_repeat1.mp3|Repeat title - repeat the current title endlessly.
 mp3/0977_modifier_bluetooth.mp3|Bluetooth card - You can use the Bluetooth card to switch Bluetooth on or off.
-mp3/0980_admin_lock_intro.mp3|Please select if and how the admin menu should be protected.
-mp3/0981_admin_lock_disabled.mp3|No protection - the admin menu can be activated at any time by pressing all three buttons.
-mp3/0982_admin_lock_card.mp3|Admin card only - the admin menu can only be opened with an admin card. A new admin card can be learned at any time.
-mp3/0983_admin_lock_pin.mp3|Enter Pin Code - the admin menu is protected by a four-digit pin. When you select this option, the next thing you need to do is set the pin.
-mp3/0984_admin_lock_calc.mp3|Calculation task - the admin menu can be entered only by solving a calculation task.
+mp3/0978_modifier_jukebox.mp3|Jukebox card - If a track is already playing and a new card is inserted, it is not played immediately but placed in a queue. Only when the current card has finished playing is the next card taken from the queue.
+mp3/0979_modifier_pauseAftTr.mp3|Pause after each track card - With this card, the Tonuino enters pause state after each track.
+mp3/0980_modifier_disableStandby.mp3|Disable Standby Card - With this card, you can temporarily turn the standby timer off and on again
+mp3/0981_modifier_switchEndless.mp3|Endless switch card - With this card you can switch on or off th eendless mode
+mp3/0985_admin_lock_intro.mp3|Please select if and how the admin menu should be protected.
+mp3/0986_admin_lock_disabled.mp3|No protection - the admin menu can be activated at any time by pressing all three buttons.
+mp3/0987_admin_lock_card.mp3|Admin card only - the admin menu can only be opened with an admin card. A new admin card can be learned at any time.
+mp3/0988_admin_lock_pin.mp3|Enter Pin Code - the admin menu is protected by a four-digit pin. When you select this option, the next thing you need to do is set the pin.
+mp3/0989_admin_lock_calc.mp3|Calculation task - the admin menu can be entered only by solving a calculation task.
 mp3/0991_admin_pin.mp3|Please enter the pin
 mp3/0992_admin_calc.mp3|How many is
 mp3/0993_admin_calc.mp3|plus

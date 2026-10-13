@@ -50,14 +50,15 @@ Mp3::Mp3(Settings &settings)
 #endif /* DFPlayerUsesHardwareSerial */
 {
   // Busy Pin
-  pinMode(dfPlayer_busyPin              , dfPlayer_busyPinType               == levelType::activeHigh ? INPUT : INPUT_PULLUP);
+  input_pin_mode(dfPlayer_busyPin, dfPlayer_busyPinType);
 
 #ifdef HPJACKDETECT
   // Headphone Jack Detection
 #ifdef ALLinONE_Plus
+  // although it is activeLow INPUT_PULLUP is not allowed
   pinMode(dfPlayer_noHeadphoneJackDetect, INPUT);
 #else
-  pinMode(dfPlayer_noHeadphoneJackDetect, INPUT_PULLUP);
+  input_pin_mode(dfPlayer_noHeadphoneJackDetect, dfPlayer_noHeadphoneJackDetectType);
 #endif
 #endif
 }
@@ -75,10 +76,13 @@ void Mp3::init() {
     LOG(init_log, s_error, F("Com to DFPlayer broken"));
 
   setEq(static_cast<DfMp3_Eq>(settings.eq - 1));
+  delay(500);
+  loop();
 
   startTrackTimer.start(6000); // 6 seconds
   while (not startTrackTimer.isExpired() && (getTotalTrackCount() == 0)) {
-    delay(100);
+    LOG(init_log, s_debug, F("retry getTotalTrackCount"));
+    delay(1000);
     loop();
   }
   startTrackTimer.stop();
@@ -89,8 +93,8 @@ void Mp3::init() {
   loop();
 }
 
-bool Mp3::isPlaying() const {
-  return !digitalRead(dfPlayer_busyPin);
+void Mp3::refreshIsPlaying() {
+  is_playing_cache = pin_is_active(dfPlayer_busyPin, dfPlayer_busyPinType);
 }
 
 void Mp3::waitForTrackToFinish() {
@@ -98,6 +102,9 @@ void Mp3::waitForTrackToFinish() {
 
   do {
     loop();
+#ifdef UNIT_TESTS
+    pin_value[dfPlayer_busyPin] = (dfPlayer_busyPinType == levelType::activeLow) ? HIGH : LOW;
+#endif
   } while (isPlaying());
   LOG(mp3_log, s_debug, F("waitForTrackToFinish End "), isPlaying());
 }
@@ -105,7 +112,7 @@ void Mp3::waitForTrackToFinish() {
 void Mp3::waitForTrackToStart() {
   LOG(mp3_log, s_debug, F("waitForTrackToStart "), isPlaying());
   Timer timer;
-  timer.start(dfPlayer_timeUntilStarts);
+  timer.start(2*dfPlayer_timeUntilStarts);
 
   do {
     loop();
@@ -113,40 +120,76 @@ void Mp3::waitForTrackToStart() {
   LOG(mp3_log, s_debug, F("waitForTrackToStart End "), isPlaying());
 }
 
-void Mp3::playAdvertisement(uint16_t track, bool olnyIfIsPlaying) {
+void Mp3::playAdvertisement(uint16_t track, bool onlyIfIsPlaying) {
   LOG(mp3_log, s_info, F("play adv: "), track);
 #ifdef DFMiniMp3_IGNORE_ONPLAYFINISHED_FOR_ADV
   advPlaying = true;
 #endif
   if (isPlaying()) {
-    LOG(mp3_log, s_debug, F("playAdvertisement()"));
+    LOG(mp3_log, s_info, F("playAdvertisement: "), track);
     Base::playAdvertisement(track);
+    delay(500); // to prevent missingOnPlayerFinish
+    LOG(mp3_log, s_debug, F("after delay"));
   }
-  else if (not olnyIfIsPlaying) {
+  else if (not onlyIfIsPlaying) {
     if (isPause) {
-      start();
+      // should not be in playing
+      waitForTrackToFinish();
+      LOG(modifier_log, s_debug, "no track playing");
+
+      Base::start();
+      LOG(mp3_log, s_info, F("start (from pause)"));
     }
     else {
+      // should not be in playing
+      waitForTrackToFinish();
+      LOG(modifier_log, s_debug, "no track is playing");
+
       Base::playFolderTrack(1, 1);
-      delay(dfPlayer_timeUntilStarts);
+      LOG(mp3_log, s_info, F("playFolderTrack(1,1)"));
     }
+
+#ifdef DFMiniMp3_T_CHIP_MH2024K24SS_MP3_TF_16P_V3_0
     waitForTrackToStart();
-    LOG(mp3_log, s_debug, F("playAdvertisement: "), track);
+    LOG(modifier_log, s_info, F("MH2024K24SS_MP3_TF_16P_V3_0: additional busy"));
+    waitForTrackToFinish();
+    LOG(modifier_log, s_info, F("MH2024K24SS_MP3_TF_16P_V3_0: additional busy finished"));
+#endif
+
+    waitForTrackToStart(); // origin track starts
+    LOG(mp3_log, s_debug, F("origin track started"));
+
+    LOG(mp3_log, s_info, F("playAdvertisement: "), track);
     Base::playAdvertisement(track);
-    delay(dfPlayer_timeUntilStarts);
-    LOG(mp3_log, s_debug, F("before waitForTrackToFinish()"));
-    waitForTrackToFinish(); // finish adv
-    LOG(mp3_log, s_debug, F("before waitForTrackToStart()"));
-    waitForTrackToStart();  // start folder track
-    LOG(mp3_log, s_debug, F("after waitForTrackToStart()"));
+
+    waitForTrackToFinish(); // origin track pauses
+    LOG(modifier_log, s_debug, F("origin track pauses"));
+
+    waitForTrackToStart();  // adv track starts
+    LOG(mp3_log, s_debug, F("adv track started"));
+
+    waitForTrackToFinish(); // adv track finished
+    LOG(modifier_log, s_debug, F("adv track finished"));
+
+//#ifdef DFMiniMp3_T_CHIP_MH2024K24SS_MP3_TF_16P_V3_0
+//    waitForTrackToStart();
+//    LOG(modifier_log, s_debug, F("MH2024K24SS_MP3_TF_16P_V3_0: additional busy"));
+//    waitForTrackToFinish();
+//    LOG(modifier_log, s_debug, F("MH2024K24SS_MP3_TF_16P_V3_0: additional busy finished"));
+//#endif
+
+    waitForTrackToStart();  // origin track starts again
+    LOG(mp3_log, s_debug, F("origin track started (again)"));
+
     delay(10);
-    pause();
+    Base::pause();
+    LOG(mp3_log, s_debug, F("origin track pauses (again)"));
     loop();
   }
 }
 
-void Mp3::playAdvertisement(advertTracks track, bool olnyIfIsPlaying) {
-  playAdvertisement(static_cast<uint16_t>(track), olnyIfIsPlaying);
+void Mp3::playAdvertisement(advertTracks track, bool onlyIfIsPlaying) {
+  playAdvertisement(static_cast<uint16_t>(track), onlyIfIsPlaying);
 }
 
 void Mp3::clearFolderQueue() {
@@ -163,6 +206,9 @@ void Mp3::clearMp3Queue() {
   mp3_track_next = 0;
 }
 void Mp3::enqueueTrack(uint8_t folder, uint8_t firstTrack, uint8_t lastTrack, uint8_t currentTrack) {
+#ifdef TonUINO_Esp32
+  std::lock_guard<std::mutex> lck(q_mtx);
+#endif
 #ifdef HPJACKDETECT
   if (tempSpkOn > 0)
     --tempSpkOn;
@@ -184,6 +230,9 @@ void Mp3::enqueueTrack(uint8_t folder, uint8_t track) {
   enqueueTrack(folder, track, track);
 }
 void Mp3::shuffleQueue() {
+#ifdef TonUINO_Esp32
+  std::lock_guard<std::mutex> lck(q_mtx);
+#endif
   q.shuffle();
   LOG(mp3_log, s_info, F("shuffled "), lf_no);
   for (uint8_t i = 0; i<q.size(); ++i)
@@ -264,6 +313,18 @@ void Mp3::playPrevious(uint8_t tracks) {
   }
 }
 
+void Mp3::jumpTo(uint8_t track) {
+#ifdef HPJACKDETECT
+  if (playing == play_folder)
+    tempSpkOn = 0;
+#endif
+  if (playing == play_folder && (track < q.size())) {
+    current_track = track;
+    LOG(mp3_log, s_debug, F("jumpTo: "), current_track);
+    playCurrent();
+  }
+}
+
 uint16_t Mp3::getFolderTrackCount(uint16_t folder)
 {
     uint16_t ret = 0;
@@ -281,6 +342,7 @@ uint16_t Mp3::getFolderTrackCount(uint16_t folder)
     LOG(mp3_log, s_debug, F("getFolderTrackCount return: "), ret);
 
 #ifdef DFMiniMp3_T_CHIP_GD3200B
+    Base::stop();
     Base::setVolume(*volume);
 #endif
 
@@ -310,7 +372,7 @@ void Mp3::decreaseVolume() {
 }
 
 bool Mp3::setVolume() {
-  LOG(mp3_log, s_debug, F("setVolume: "), volume);
+  LOG(mp3_log, s_debug, F("setVolume: "), *volume);
   startTrackTimer.start(6000); // 6 seconds
   while(not startTrackTimer.isExpired() && (Base::getVolume() != *volume)) {
     delay(200);
@@ -342,14 +404,16 @@ void Mp3::logVolume() {
 #ifdef HPJACKDETECT
 void Mp3::hpjackdetect() {
 
-  level noHeadphoneJackDetect_now = getLevel(dfPlayer_noHeadphoneJackDetectType, digitalRead(dfPlayer_noHeadphoneJackDetect));
+  bool headphoneJackDetect_now = pin_is_inactive(dfPlayer_noHeadphoneJackDetect, dfPlayer_noHeadphoneJackDetectType);
   if (tempSpkOn)
-    noHeadphoneJackDetect_now = level::active;
+    headphoneJackDetect_now = false;
 
-  if (noHeadphoneJackDetect != noHeadphoneJackDetect_now) {
-    noHeadphoneJackDetect = noHeadphoneJackDetect_now;
-    LOG(mp3_log, s_info, F("hpJackDetect: "), noHeadphoneJackDetect == level::active ? 0 : 1);
-    digitalWrite(ampEnablePin, getLevel(ampEnablePinType, noHeadphoneJackDetect));
+  if (headphoneJackDetect != headphoneJackDetect_now) {
+    headphoneJackDetect = headphoneJackDetect_now;
+    LOG(mp3_log, s_info, F("hpJackDetect: "), headphoneJackDetect);
+#ifdef SPKONOFF
+    pin_set_level(ampEnablePin, ampEnablePinType, headphoneJackDetect ? level::inactive : level::active);
+#endif
     if (isHeadphoneJackDetect()) {
       volume     = &hpVolume;
       maxVolume  = &settings.hpMaxVolume;
@@ -367,7 +431,44 @@ void Mp3::hpjackdetect() {
 }
 #endif
 
+#ifdef TonUINO_Esp32
+  String Mp3::getQueue() {
+    std::lock_guard<std::mutex> lck(q_mtx);
+    String res;
+    constexpr uint8_t additional = 4;
+
+    if (isPlayingFolder()) {
+      uint8_t first = (current_track < additional) ? 0 : current_track-additional;
+      uint8_t last  = (current_track > q.size()-1-additional) ? q.size()-1 : current_track+additional;
+      if (first > 0)
+        res += "... ";
+      for (uint8_t t = first; t <= last; ++t) {
+        if (t == current_track)
+          res += "<b>";
+        res += String(q.get(t));
+        if (t == current_track)
+          res += "</b>";
+        res += " ";
+      }
+      if (last < q.size()-1)
+        res += "...";
+    }
+
+    return res;
+  }
+#endif
+
+
 void Mp3::loop() {
+
+  refreshIsPlaying();
+  static bool is_playing = false;
+  LOG_CODE(mp3_log, s_info, {
+    if (is_playing != is_playing_cache) {
+      is_playing = is_playing_cache;
+      LOG(mp3_log, s_info, F("isPlaying: "), is_playing);
+    }
+  } );
 
   if (not isPause && playing != play_none && startTrackTimer.isExpired() && not isPlaying()) {
     if (not missingOnPlayFinishedTimer.isActive())

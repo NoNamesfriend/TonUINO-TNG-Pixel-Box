@@ -5,6 +5,7 @@
 #include "src/buttons.hpp"
 #include "src/logger.hpp"
 #include "src/constants.hpp"
+#include "src/version.hpp"
 
 /*
    _____         _____ _____ _____ _____
@@ -26,16 +27,23 @@ Bitte wählt eure TonUINO-Platine (Classic, AiO oder AiO+) in der Datei constant
 void setup()
 {
   Serial.begin(115200);
+#ifdef TonUINO_Esp32
+  if (pin_is_active(buttonDownPin, buttonPinType))
+    delay(5000);
+#endif
 
   // Dieser Hinweis darf nicht entfernt werden
-  LOG(init_log, s_error, F("\n _____         _____ _____ _____ _____"));
+  LOG(init_log, s_error, F(""));
+  LOG(init_log, s_error, F(" _____         _____ _____ _____ _____ "));
   LOG(init_log, s_error, F("|_   _|___ ___|  |  |     |   | |     |"));
   LOG(init_log, s_error, F("  | | | . |   |  |  |-   -| | | |  |  |"));
   LOG(init_log, s_error, F("  |_| |___|_|_|_____|_____|_|___|_____|"));
-  LOG(init_log, s_error, F("TonUINO Version 3.x - refactored by Boerge1\n"));
+  LOG(init_log, s_error, F("TonUINO Version 3.x - refactored by Boerge1"));
+  LOG(init_log, s_error, F(""));
   LOG(init_log, s_error, F("created by Thorsten Voß and licensed under GNU/GPL."));
-  LOG(init_log, s_error, F("Information and contribution at https://tonuino.de.\n"));
-  LOG(init_log, s_error, F("V3.2.1 25.03.25\n"));
+  LOG(init_log, s_error, F("Information and contribution at https://tonuino.de."));
+  LOG(init_log, s_error, F(""));
+  LOG(init_log, s_error, TONUINO_TNG_VERSION());
 
 #ifdef TonUINO_Classic
   LOG(init_log, s_error, F("C "), lf_no);
@@ -52,10 +60,16 @@ void setup()
 #ifdef ALLinONE_Plus
   LOG(init_log, s_error, F("A+ "), lf_no);
 #endif
+#if TonUINO_Esp32 == 100
+  LOG(init_log, s_error, F("ESP32 Nano "), lf_no);
+#endif
+#if TonUINO_Esp32 == 200
+  LOG(init_log, s_error, F("ESP32 Wroom 32 "), lf_no);
+#endif
 
 #ifdef FIVEBUTTONS
   LOG(init_log, s_error, F("5"));
-#elif  BUTTONS3X3
+#elif defined(BUTTONS3X3)
   LOG(init_log, s_error, F("3x3"));
 #else
   LOG(init_log, s_error, F("3"));

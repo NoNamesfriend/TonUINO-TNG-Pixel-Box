@@ -47,12 +47,11 @@ bool BatVoltage::check() {
 #endif
   const int16_t value = analogRead(voltageMeasurementPin)*static_cast<long>(voltageMeasurementRefVoltage)/1000;
 
-  LOG_CODE(batvol_log, s_debug, {                                                                               \
-  if (logTimer.isExpired()) {                                                                                   \
-    logTimer.start(2000);                                                                                       \
-    LOG(batvol_log, s_debug, F("BatVoltage: "), value*voltageMeasurementCorrection/voltageMeasurementMaxLevel); \
-  }                                                                                                             \
-                                } );
+  if (logTimer.isExpired()) {
+    logTimer.start(2000);
+    voltage = value*voltageMeasurementCorrection/voltageMeasurementMaxLevel;
+    LOG(batvol_log, s_debug, F("BatVoltage: "), voltage);
+  }
 
   if (value < voltageMeasurementEmptyLevel) {
     if (emptyTimer.isActive()) {
@@ -65,12 +64,14 @@ bool BatVoltage::check() {
       emptyTimer.start(batEmptyTimer);
     }
   }
-  else
+  else {
     emptyTimer.stop();
+  }
 
   if (value < voltageMeasurementLowLevel) {
     if (lowTimer.isActive()) {
       if (lowTimer.isExpired()) {
+        low = true;
         lowMessage();
       }
     }
@@ -78,14 +79,16 @@ bool BatVoltage::check() {
       lowTimer.start(batLowMessageIntervall);
     }
   }
-  else
+  else {
     lowTimer.stop();
+    low = false;
+  }
 
   return false;
 }
 
 void BatVoltage::lowMessage() {
-  mp3.playAdvertisement(advertTracks::t_262_pling, false /*olnyIfIsPlaying*/);
+  mp3.playAdvertisement(advertTracks::t_262_pling, false /*onlyIfIsPlaying*/);
 }
 
 #endif // BAT_VOLTAGE_MEASUREMENT

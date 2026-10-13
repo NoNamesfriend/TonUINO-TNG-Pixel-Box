@@ -15,10 +15,13 @@ void Neo_pixels::init()
   pixels.begin();
   pixels.show();
   pixels.setBrightness(NeoPixelBrightness);
-  
+
   state = State::idle;
   currentState = State::none;
-  
+  resumeState = State::idle;
+  isStateBlocking = false;
+  nightLightEnabled = false;
+
   updateFromSettings();
 
   animStartupOnInit();
@@ -26,12 +29,8 @@ void Neo_pixels::init()
 
 void Neo_pixels::loop()
 {
-  if (isAutoUnblock && animStepStart + updatePause < millis())
-  {
-    isStateBlocking = false;
-    isAutoUnblock = false;
-    currentState = State::none;
-  }
+  if (nightLightEnabled)
+    return;
   // LOG(init_log, s_info, static_cast<uint8_t>(state));
   switch (state)
   {
@@ -50,7 +49,7 @@ void Neo_pixels::loop()
   case State::pause:
     animPause();
     break;
-  case State::next: 
+  case State::next:
     animNextTrack();
     break;
   case State::previous:
@@ -62,6 +61,41 @@ void Neo_pixels::loop()
   default:
     break;
   }
+}
+
+void Neo_pixels::setState(State nextState)
+{
+  if (nextState == State::idle || nextState == State::play
+      || nextState == State::pause || nextState == State::admin) {
+    resumeState = nextState;
+    if (nightLightEnabled)
+      return;
+    if (isStateBlocking && nextState != State::idle && nextState != State::admin)
+      return;
+    // Keep next/previous/volume feedback until its animation finishes.
+    if ((state == State::next || state == State::previous || state == State::volume)
+        && nextState == State::play)
+      return;
+    isStateBlocking = false;
+  }
+  else if (nightLightEnabled || isStateBlocking) {
+    return;
+  }
+  state = nextState;
+  if (nextState == State::new_card)
+    isStateBlocking = true; // Latch before the subsequent Play::entry().
+}
+
+void Neo_pixels::setNightLight(bool enabled)
+{
+  if (nightLightEnabled == enabled)
+    return;
+  nightLightEnabled = enabled;
+  isStateBlocking = false;
+  currentState = State::none;
+  state = enabled ? State::night_light : resumeState;
+  if (enabled)
+    displayNightLight();
 }
 
 void Neo_pixels::shutdown()
@@ -91,12 +125,12 @@ void Neo_pixels::shutdown()
 //     pixels.show();
 //   }
 
-//   if (animStepStart + updatePause > millis())
+//   if (static_cast<uint32_t>(millis() - animStepStart) < updatePause)
 //     return;
 
 //   animStepStart = millis();
 
-//   for (uint8_t i = 0; i < pixels.numPixels(); i++)
+//   for (uint16_t i = 0; i < pixels.numPixels(); i++)
 //   {
 //     //update pixels for animation
 //   }
@@ -117,7 +151,7 @@ void Neo_pixels::shutdown()
 
 void Neo_pixels::animStartupOnInit()
 {
-  for (uint8_t i = 0; i < pixels.numPixels() / 2; i++)
+  for (uint16_t i = 0; i < (pixels.numPixels() + 1) / 2; i++)
   {
     pixels.setPixelColor(i, pixels.ColorHSV(hue, 255, baseValue));
     pixels.setPixelColor(pixels.numPixels() - 1 - i, pixels.ColorHSV(hue, 255, baseValue));
@@ -128,10 +162,10 @@ void Neo_pixels::animStartupOnInit()
 
 void Neo_pixels::animShutdown()
 {
-  for (uint8_t i = 0; i < pixels.numPixels() / 2; i++)
+  for (uint16_t i = 0; i < (pixels.numPixels() + 1) / 2; i++)
   {
     pixels.setPixelColor(pixels.numPixels() / 2 + i, 0);
-    pixels.setPixelColor(pixels.numPixels() / 2 - 1 - i, 0);
+    pixels.setPixelColor((pixels.numPixels() - 1) / 2 - i, 0);
     pixels.show();
     delay(100);
   }
@@ -168,19 +202,19 @@ void Neo_pixels::animNewCard()
     currentState = state;
 
     pixels.clear();
-    for (uint8_t i = 0; i < pixels.numPixels(); i++)
+    for (uint16_t i = 0; i < pixels.numPixels(); i++)
     {
       pixels.setPixelColor(i, pixels.ColorHSV(hue, 255, baseValue));
     }
     pixels.show();
   }
 
-  if (animStepStart + updatePause > millis())
+  if (static_cast<uint32_t>(millis() - animStepStart) < updatePause)
     return;
 
   animStepStart = millis();
 
-  for (uint8_t i = 0; i < pixels.numPixels(); i++)
+  for (uint16_t i = 0; i < pixels.numPixels(); i++)
   {
     pixels.setPixelColor(i, pixels.ColorHSV(hue, 255, baseValue));
     pixels.setPixelColor(pixels.numPixels() / 2 + step - 1, pixels.ColorHSV(hue, 255, 255));
@@ -211,7 +245,7 @@ void Neo_pixels::animNewCard()
   {
     step = 1;
     isStateBlocking = false;
-    state = State::play;
+    state = resumeState;
   }
 }
 
@@ -242,7 +276,7 @@ void Neo_pixels::animPause()
     currentState = state;
   }
 
-  if (animStepStart + updatePause > millis())
+  if (static_cast<uint32_t>(millis() - animStepStart) < updatePause)
     return;
 
   animStepStart = millis();
@@ -250,7 +284,7 @@ void Neo_pixels::animPause()
   if (isPreparing)
   {
     isPreparing = false;
-    for (uint8_t i = 0; i < pixels.numPixels(); i++)
+    for (uint16_t i = 0; i < pixels.numPixels(); i++)
     {
       uint8_t calcValue = valueFromColor(pixels.getPixelColor(i));
       uint8_t nextValue;
@@ -281,7 +315,7 @@ void Neo_pixels::animPause()
   else
     dimDownValue = 255 - (16 * (miniStep - 18));
 
-  for (uint8_t i = 0; i < pixels.numPixels(); i++)
+  for (uint16_t i = 0; i < pixels.numPixels(); i++)
   {
     if (miniStep <= 18)
       pixels.setPixelColor(i, pixels.ColorHSV(hue, 255, dimUpValue));
@@ -308,19 +342,19 @@ void Neo_pixels::animNextTrack()
     currentState = state;
 
     pixels.clear();
-    for (uint8_t i = 0; i < pixels.numPixels(); i++)
+    for (uint16_t i = 0; i < pixels.numPixels(); i++)
     {
       pixels.setPixelColor(i, pixels.ColorHSV(hue, 255, baseValue));
     }
     pixels.show();
   }
 
-  if (animStepStart + updatePause > millis())
+  if (static_cast<uint32_t>(millis() - animStepStart) < updatePause)
     return;
 
   animStepStart = millis();
 
-  for (uint8_t i = 0; i < pixels.numPixels(); i++)
+  for (uint16_t i = 0; i < pixels.numPixels(); i++)
   {
     pixels.setPixelColor(i, pixels.ColorHSV(hue, 255, baseValue));
     pixels.setPixelColor(step - 1, pixels.ColorHSV(hue, 255, 255));
@@ -338,7 +372,7 @@ void Neo_pixels::animNextTrack()
   step++;
 
   if (step > pixels.numPixels() + 4)
-    state = State::play;
+    state = resumeState;
 }
 
 void Neo_pixels::animPreviousTrack()
@@ -352,19 +386,19 @@ void Neo_pixels::animPreviousTrack()
     currentState = state;
 
     pixels.clear();
-    for (uint8_t i = 0; i < pixels.numPixels(); i++)
+    for (uint16_t i = 0; i < pixels.numPixels(); i++)
     {
       pixels.setPixelColor(i, pixels.ColorHSV(hue, 255, baseValue));
     }
     pixels.show();
   }
 
-  if (animStepStart + updatePause > millis())
+  if (static_cast<uint32_t>(millis() - animStepStart) < updatePause)
     return;
 
   animStepStart = millis();
 
-  for (uint8_t i = 0; i < pixels.numPixels(); i++)
+  for (uint16_t i = 0; i < pixels.numPixels(); i++)
   {
     pixels.setPixelColor(i, pixels.ColorHSV(hue, 255, baseValue));
     pixels.setPixelColor(pixels.numPixels() - step, pixels.ColorHSV(hue, 255, 255));
@@ -382,7 +416,7 @@ void Neo_pixels::animPreviousTrack()
   step++;
 
   if (step > pixels.numPixels() + 4)
-    state = State::play;
+    state = resumeState;
 }
 
 void Neo_pixels::animVolume()
@@ -398,21 +432,26 @@ void Neo_pixels::animVolume()
 
   pixels.clear();
 
-  uint8_t onPixels = map(Tonuino::getTonuino().getMp3().getVolume(), Tonuino::getTonuino().getMp3().getMinVolume(), Tonuino::getTonuino().getMp3().getMaxVolume(), 1, pixels.numPixels());
+  auto& mp3 = Tonuino::getTonuino().getMp3();
+  const uint8_t minVolume = mp3.getMinVolume();
+  const uint8_t maxVolume = mp3.getMaxVolume();
+  const uint8_t volume = min(max(mp3.getVolume(), minVolume), maxVolume);
+  const uint16_t onPixels = maxVolume > minVolume
+      ? map(volume, minVolume, maxVolume, 1, pixels.numPixels()) : pixels.numPixels();
 
-  for (uint8_t i = 0; i < onPixels; i++)
+  for (uint16_t i = 0; i < onPixels; i++)
   {
     uint16_t volumeHue = map(i, 0, pixels.numPixels(), 22000, -2000);
     pixels.setPixelColor(i, pixels.ColorHSV(volumeHue, 255, 255));
   }
   pixels.show();
 
-  if (animStepStart + updatePause > millis())
+  if (static_cast<uint32_t>(millis() - animStepStart) < updatePause)
     return;
 
   animStepStart = millis();
 
-  state = State::play;
+  state = resumeState;
 }
 
 void Neo_pixels::dotForwardPulse() {
@@ -426,7 +465,7 @@ if (currentState != state)
     currentState = state;
   }
 
-  if (animStepStart + updatePause > millis())
+  if (static_cast<uint32_t>(millis() - animStepStart) < updatePause)
     return;
 
   animStepStart = millis();
@@ -434,22 +473,22 @@ if (currentState != state)
   if (isPreparing)
   {
     isPreparing = false;
-    for (uint8_t i = 0; i < pixels.numPixels(); i++)
+    for (uint16_t i = 0; i < pixels.numPixels(); i++)
     {
       uint8_t calcValue = valueFromColor(pixels.getPixelColor(i));
       uint8_t nextValue;
-      if (calcValue < baseValue && calcValue + 16 < baseValue) 
+      if (calcValue < baseValue && calcValue + 16 < baseValue)
       {
         nextValue = calcValue + 16;
         isPreparing = true;
       }
-      else if (calcValue > baseValue && calcValue - 16 > baseValue) 
+      else if (calcValue > baseValue && calcValue - 16 > baseValue)
       {
         nextValue = calcValue - 16;
         isPreparing = true;
       }
       else
-      nextValue = calcValue;
+        nextValue = baseValue;
 
       pixels.setPixelColor(i, pixels.ColorHSV(hue, 255, nextValue));
     }
@@ -471,7 +510,7 @@ if (currentState != state)
   else
     dimDownValue = 255 - (16 * (miniStep - 15));
 
-  for (uint8_t i = 0; i < pixels.numPixels(); i++)
+  for (uint16_t i = 0; i < pixels.numPixels(); i++)
   {
     if ((i - step) % 4 == 0)
     {
@@ -509,15 +548,15 @@ if (currentState != state)
     currentState = state;
   }
 
-  if (animStepStart + updatePause > millis())
+  if (static_cast<uint32_t>(millis() - animStepStart) < updatePause)
     return;
 
   animStepStart = millis();
 
-  uint16_t hueOffset = 65536 / pixels.numPixels() / 6 * step;
-  uint16_t hueMultiplier = 65536 / pixels.numPixels();
+  uint16_t hueOffset = 65536UL * step / pixels.numPixels() / 6;
+  uint32_t hueMultiplier = 65536UL / pixels.numPixels();
 
-  for(uint8_t i = 0; i < pixels.numPixels(); i++) 
+  for(uint16_t i = 0; i < pixels.numPixels(); i++)
   {
     pixels.setPixelColor(i, (pixels.ColorHSV(i * hueMultiplier - hueOffset, 255, baseValue)));
   }
@@ -551,13 +590,9 @@ void Neo_pixels::displayAll(uint16_t hue, uint8_t baseValue)
 void Neo_pixels::displayAdmin()
 {
   currentState = state;
-  uint64_t adminHue;
-  if (65536 / 6 + hue <= 65536)
-    adminHue = 65536 / 6 + hue;
-  else
-    adminHue = 65536 / 6 + hue - 65536;
+  const uint16_t adminHue = hue + 65536UL / 6;
 
-  for (uint8_t i = 0; i < pixels.numPixels(); i++)
+  for (uint16_t i = 0; i < pixels.numPixels(); i++)
   {
 
     if (i % 2 == 0)
@@ -570,12 +605,7 @@ void Neo_pixels::displayAdmin()
 
 void Neo_pixels::displayNightLight()
 {
-  isStateBlocking = true;
-  isAutoUnblock = true;
-  updatePause = 500;
-  animStepStart = millis();
-
-  for (uint8_t i = 0; i < pixels.numPixels(); i++)
+  for (uint16_t i = 0; i < pixels.numPixels(); i++)
   {
     pixels.setPixelColor(i, pixels.ColorHSV(5000, 255, nightLightValue));
   }

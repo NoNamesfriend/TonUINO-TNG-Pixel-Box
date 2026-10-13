@@ -64,6 +64,8 @@ public:
   bool isAbort(command cmd);
 
   static folderSettings folder;
+  static const __FlashStringHelper* state_str;
+  static bool           startPlayFromPlay;
 protected:
   static Timer          timer;
   static bool           waitForPlayFinish; // with this it needs 66 Byte lesser program code ;-)
@@ -80,10 +82,16 @@ protected:
   bool handleShortcut(uint8_t shortCut);
   void handleReadCard();
   bool checkForShortcutAndShutdown(command cmd);
+#ifdef TonUINO_Esp32
+  bool checkForWritingCard(command cmd, command_e const &cmd_e);
+  bool writingCard{};
+#endif
 #ifdef NEO_RING
   void handleBrightness(command cmd);
 #endif
   static folderSettings lastCardRead;
+  template<class C>
+  void transitToStartPlay();
 };
 
 class Idle: public Base
@@ -161,6 +169,33 @@ private:
   static constexpr long timeout{ 5 * 60 * 1000l};
 };
 
+class Teapot: public Base
+{
+public:
+  void entry() override;
+  void react(command_e const &) override;
+  void react(card_e    const &) override;
+private:
+  enum class PlayState: uint8_t {
+    startNext,
+    playDescriptions,
+    playSolution,
+    playContinue,
+  };
+
+  void finish();
+
+  uint8_t getNextQuestion();
+
+  uint8_t   numDescriptions {};
+  PlayState playState       {};
+  uint8_t   trackQuestion   {};
+  uint8_t   numQuestion     {};
+  bitfield<128> r           {}; // max in buzzer mode (num answer = 0, num solution = 1)
+  uint8_t remainingQuestions{};
+  static constexpr long timeout{ 5 * 60 * 1000l};
+};
+
 // ----------------------------------------------------------------------------
 // State Machine end states
 //
@@ -201,6 +236,13 @@ public:
 };
 
 class ChFolder : public VoiceMenu_setupCard
+{
+public:
+  void entry() final;
+  void react(command_e const &) final;
+};
+
+class ChLastFolder : public VoiceMenu_setupCard
 {
 public:
   void entry() final;
@@ -434,7 +476,7 @@ public:
   void react(command_e const &) final;
 };
 
-#ifdef MEMORY_GAME
+//#ifdef MEMORY_GAME
 class Admin_MemoryGameCards: public Amin_BaseWriteCard
 {
 public:
@@ -448,7 +490,7 @@ private:
   };
   subState current_subState{};
 };
-#endif
+//#endif
 
 
 #endif /* SRC_STATE_MACHINE_HPP_ */

@@ -8,6 +8,7 @@
 #include <string.h>
 #include <math.h>
 #include <sstream>
+#include <vector>
 
 
 #ifdef __cplusplus
@@ -43,6 +44,9 @@ typedef char __FlashStringHelper;
 extern unsigned long current_time;
 inline unsigned long millis() { return current_time; }
 inline void delay(unsigned long ms) { current_time += ms; }
+inline long map(long value, long fromLow, long fromHigh, long toLow, long toHigh) {
+  return (value - fromLow) * (toHigh - toLow) / (fromHigh - fromLow) + toLow;
+}
 
 #define DEC 10
 #define HEX 16

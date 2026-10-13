@@ -37,7 +37,7 @@ TEST_F(tonuino_test_fixture, SleepTimer_in_play) {
   execute_cycle_for_ms(1000);
   EXPECT_TRUE(SM_tonuino::is_in_state<Play>());
 
-  execute_cycle_for_ms(timeout_ms - cycleTime - (current_time - start_time));
+  execute_cycle_for_ms(timeout_ms - (current_time - start_time));
   EXPECT_TRUE(SM_tonuino::is_in_state<Play>());
 
   execute_cycle();

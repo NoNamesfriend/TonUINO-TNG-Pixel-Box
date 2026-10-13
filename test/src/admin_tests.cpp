@@ -39,7 +39,7 @@ public:
     case Admin_Entry_menu_items::Admin_CardsForFolder          : return mp3Tracks::t_301_select_folder;
     case Admin_Entry_menu_items::Admin_InvButtons              : return mp3Tracks::t_933_switch_volume_intro;
     case Admin_Entry_menu_items::Admin_ResetEeprom             : return mp3Tracks::t_999_reset_ok;
-    case Admin_Entry_menu_items::Admin_LockAdmin               : return mp3Tracks::t_980_admin_lock_intro;
+    case Admin_Entry_menu_items::Admin_LockAdmin               : return mp3Tracks::t_985_admin_lock_intro;
     case Admin_Entry_menu_items::Admin_PauseIfCardRemoved      : return mp3Tracks::t_913_pause_on_card_removed;
     }
     return mp3Tracks::t_0;
@@ -169,45 +169,73 @@ public:
     }
     // button select --> select folder
     button_for_command(command::select, state_for_command::admin);
-    if (card.mode == pmode_t::hoerspiel || card.mode == pmode_t::album    ||
-        card.mode == pmode_t::party     || card.mode == pmode_t::hoerbuch   ) {
+    if (card.mode == pmode_t::hoerspiel || card.mode == pmode_t::album ||
+        card.mode == pmode_t::party                                      ) {
       EXPECT_TRUE(SM_setupCard::is_in_state<finished_setupCard>());
       ASSERT_EQ(SM_setupCard::folder, card);
       return;
     }
     if (card.mode == pmode_t::einzel)
       EXPECT_TRUE(SM_setupCard::is_in_state<ChTrack>());
-    else if (card.mode == pmode_t::hoerbuch_1)
-      EXPECT_TRUE(SM_setupCard::is_in_state<ChNumTracks>());
+    else if (card.mode == pmode_t::hoerbuch || card.mode == pmode_t::hoerbuch_1)
+      EXPECT_TRUE(SM_setupCard::is_in_state<ChLastFolder>());
     else
       EXPECT_TRUE(SM_setupCard::is_in_state<ChFirstTrack>());
     execute_cycle_for_ms(time_check_play);
     EXPECT_TRUE(getMp3().is_playing_mp3());
     if (card.mode == pmode_t::einzel)
       EXPECT_EQ(getMp3().df_mp3_track, static_cast<uint16_t>(mp3Tracks::t_327_select_file));
-    else if (card.mode == pmode_t::hoerbuch_1)
-      EXPECT_EQ(getMp3().df_mp3_track, static_cast<uint16_t>(mp3Tracks::t_340_num_tracks));
+    else if (card.mode == pmode_t::hoerbuch || card.mode == pmode_t::hoerbuch_1)
+      EXPECT_EQ(getMp3().df_mp3_track, static_cast<uint16_t>(mp3Tracks::t_302_select_last_folder));
     else
       EXPECT_EQ(getMp3().df_mp3_track, static_cast<uint16_t>(mp3Tracks::t_328_select_first_file));
 
-    if (card.mode == pmode_t::hoerbuch_1) {
-      // ===== select number of tracks
-      for (uint8_t num = 1; num <= 5; ++num) {
-        // button up --> play track number and track
+    if (card.mode == pmode_t::hoerbuch || card.mode == pmode_t::hoerbuch_1) {
+      // ===== select last folder
+      for (uint8_t folder = card.folder; folder <= card.folder+card.special2; ++folder) {
+        // button up --> play folder number and track
         button_for_command(command::next, state_for_command::admin);
-        EXPECT_TRUE(SM_setupCard::is_in_state<ChNumTracks>());
+        EXPECT_TRUE(SM_setupCard::is_in_state<ChLastFolder>());
         execute_cycle_for_ms(time_check_play);
         EXPECT_TRUE(getMp3().is_playing_mp3());
-        EXPECT_EQ(getMp3().df_mp3_track, num);
+        EXPECT_EQ(getMp3().df_mp3_track, folder);
         getMp3().end_track();
+        current_time += 1001;
+        execute_cycle(); // end mp3 track
+        execute_cycle(); // enqueue folder track
+        execute_cycle_for_ms(time_check_play);
+        EXPECT_TRUE(getMp3().is_playing_folder());
+        EXPECT_EQ(getMp3().df_folder, folder);
+        EXPECT_EQ(getMp3().df_folder_track, 1);
       }
       // button select --> finish
       button_for_command(command::select, state_for_command::admin);
-      EXPECT_TRUE(SM_setupCard::is_in_state<finished_setupCard>());
-      EXPECT_EQ(SM_setupCard::folder.special, 5-1);
-      return;
+      if (card.mode == pmode_t::hoerbuch) {
+        EXPECT_TRUE(SM_setupCard::is_in_state<finished_setupCard>());
+        EXPECT_EQ(SM_setupCard::folder.special, card.special);
+        return;
+      }
+      if (card.mode == pmode_t::hoerbuch_1) {
+        EXPECT_TRUE(SM_setupCard::is_in_state<ChNumTracks>());
+        execute_cycle_for_ms(time_check_play);
+        EXPECT_EQ(getMp3().df_mp3_track, static_cast<uint16_t>(mp3Tracks::t_340_num_tracks));
+        // ===== select number of tracks
+        for (uint8_t num = 1; num <= card.special+1; ++num) {
+          // button up --> play track number and track
+          button_for_command(command::next, state_for_command::admin);
+          EXPECT_TRUE(SM_setupCard::is_in_state<ChNumTracks>());
+          execute_cycle_for_ms(time_check_play);
+          EXPECT_TRUE(getMp3().is_playing_mp3());
+          EXPECT_EQ(getMp3().df_mp3_track, num);
+          getMp3().end_track();
+        }
+        // button select --> finish
+        button_for_command(command::select, state_for_command::admin);
+        EXPECT_TRUE(SM_setupCard::is_in_state<finished_setupCard>());
+        EXPECT_EQ(SM_setupCard::folder.special, card.special);
+        return;
+      }
     }
-
     // ===== select track/first track
     for (uint8_t track = 1; track <= card.special; ++track) {
       // button up --> play track number and track
@@ -286,6 +314,7 @@ public:
     execute_cycle();
     execute_cycle();
     execute_cycle();
+    execute_cycle();
 
     EXPECT_TRUE(SM_writeCard::is_in_state<finished_writeCard>());
 
@@ -356,7 +385,7 @@ TEST_F(admin_test_fixture, sunny_day_adm) {
   EXPECT_TRUE(SM_tonuino::is_in_state<Admin_LockAdmin>());
   execute_cycle_for_ms(time_check_play);
   EXPECT_TRUE(getMp3().is_playing_mp3());
-  EXPECT_EQ(getMp3().df_mp3_track, static_cast<uint16_t>(mp3Tracks::t_980_admin_lock_intro));
+  EXPECT_EQ(getMp3().df_mp3_track, static_cast<uint16_t>(mp3Tracks::t_985_admin_lock_intro));
 
   // end t_980_admin_lock_intro
   getMp3().end_track();
@@ -369,7 +398,7 @@ TEST_F(admin_test_fixture, sunny_day_adm) {
   EXPECT_TRUE(SM_tonuino::is_in_state<Admin_LockAdmin>());
   execute_cycle_for_ms(time_check_play);
   EXPECT_TRUE(getMp3().is_playing_mp3());
-  EXPECT_EQ(getMp3().df_mp3_track, static_cast<uint16_t>(mp3Tracks::t_981_admin_lock_disabled));
+  EXPECT_EQ(getMp3().df_mp3_track, static_cast<uint16_t>(mp3Tracks::t_986_admin_lock_disabled));
 
   // end t_981_admin_lock_disabled
   getMp3().end_track();
@@ -470,7 +499,8 @@ TEST_F(admin_test_fixture, Admin_NewCard) {
       { 6, pmode_t::hoerspiel_vb, 1, 2 },
       { 7, pmode_t::album_vb    , 2, 3 },
       { 8, pmode_t::party_vb    , 4, 5 },
-      { 9, pmode_t::hoerbuch_1  , 0, 0 }
+      { 9, pmode_t::hoerbuch_1  , 4, 0 },
+      {10, pmode_t::hoerbuch_vb , 3, 7 }
   };
 
   Print::clear_output();
@@ -807,7 +837,8 @@ TEST_F(admin_test_fixture, Admin_ShortCut) {
       { 6, pmode_t::hoerspiel_vb, 1, 2 },
       { 7, pmode_t::album_vb    , 2, 3 },
       { 8, pmode_t::party_vb    , 4, 5 },
-      { 9, pmode_t::hoerbuch_1  , 0, 0 }
+      { 9, pmode_t::hoerbuch_1  , 4, 0 },
+      {10, pmode_t::hoerbuch_vb , 3, 7 }
   };
 
   Print::clear_output();
@@ -866,13 +897,20 @@ TEST_F(admin_test_fixture, Admin_ShortCut_extButtons) {
       { 6, pmode_t::hoerspiel_vb, 1, 2 },
       { 7, pmode_t::album_vb    , 2, 3 },
       { 8, pmode_t::party_vb    , 4, 5 },
-      { 9, pmode_t::hoerbuch_1  , 0, 0 }
+      { 9, pmode_t::hoerbuch_1  , 4, 0 },
+      {10, pmode_t::hoerbuch_vb , 3, 7 }
   };
 
   Print::clear_output();
 
+  // reset linearAnalogKeypad from longpress
+  reset_value_for_3x3();
+  execute_cycle();
+
   for (const folderSettings& card: cards) {
+//    EXPECT_TRUE(false) << "card: " << static_cast<uint8_t>(card.mode);
     for (uint8_t index = 0; index < Buttons3x3::numLevels; ++index) {
+//      EXPECT_TRUE(false) << "index: " << index;
 
       getMp3().set_folder_track_count(card.folder, 10);
 
@@ -898,7 +936,7 @@ TEST_F(admin_test_fixture, Admin_ShortCut_extButtons) {
 
       folderSettings fs;
       const int address = startAddressExtraShortcuts + index * sizeof(folderSettings);
-      EEPROM_get(address, fs);
+      Settings::EEPROM_get(address, fs);
 
       EXPECT_EQ(fs, card_expected);
 
@@ -923,10 +961,15 @@ TEST_F(admin_test_fixture, Admin_ShortCut_extButtons_longPress) {
       { 6, pmode_t::hoerspiel_vb, 1, 2 },
       { 7, pmode_t::album_vb    , 2, 3 },
       { 8, pmode_t::party_vb    , 4, 5 },
-      { 9, pmode_t::hoerbuch_1  , 0, 0 }
+      { 9, pmode_t::hoerbuch_1  , 4, 0 },
+      {10, pmode_t::hoerbuch_vb , 3, 7 }
   };
 
   Print::clear_output();
+
+  // reset linearAnalogKeypad from longpress
+  reset_value_for_3x3();
+  execute_cycle();
 
   for (const folderSettings& card: cards) {
     for (uint8_t index = 0; index < Buttons3x3::numLevels; ++index) {
@@ -957,7 +1000,7 @@ TEST_F(admin_test_fixture, Admin_ShortCut_extButtons_longPress) {
 
       folderSettings fs;
       const int address = startAddressExtraShortcuts + (Buttons3x3::numLevels+index) * sizeof(folderSettings);
-      EEPROM_get(address, fs);
+      Settings::EEPROM_get(address, fs);
 
       EXPECT_EQ(fs, card_expected);
 
@@ -987,7 +1030,8 @@ TEST_F(admin_test_fixture, New_Card) {
       { 6, pmode_t::hoerspiel_vb, 1, 2 },
       { 7, pmode_t::album_vb    , 2, 3 },
       { 8, pmode_t::party_vb    , 4, 5 },
-      { 9, pmode_t::hoerbuch_1  , 0, 0 }
+      { 9, pmode_t::hoerbuch_1  , 4, 0 },
+      {10, pmode_t::hoerbuch_vb , 3, 7 }
   };
 
   Print::clear_output();
@@ -1009,6 +1053,7 @@ TEST_F(admin_test_fixture, New_Card) {
     // wait for end t_300_new_tag
     execute_cycle_for_ms(dfPlayer_timeUntilStarts);
     getMp3().end_track();
+    execute_cycle();
     execute_cycle();
     execute_cycle();
     execute_cycle(); // --> start_setupCard
@@ -1361,7 +1406,7 @@ TEST_F(admin_test_fixture, Admin_LockAdmin) {
       button_for_command(command::next, state_for_command::admin);
       execute_cycle_for_ms(time_check_play);
       EXPECT_TRUE(getMp3().is_playing_mp3());
-      EXPECT_EQ(getMp3().df_mp3_track, static_cast<uint16_t>(mp3Tracks::t_980_admin_lock_intro) + m);
+      EXPECT_EQ(getMp3().df_mp3_track, static_cast<uint16_t>(mp3Tracks::t_985_admin_lock_intro) + m);
     }
     // button select --> select mode
     button_for_command(command::select, state_for_command::admin);

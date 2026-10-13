@@ -69,7 +69,7 @@ public:
   Settings  settings;
 };
 
-bool operator==(const Settings &lhs, const Settings &rhs) {
+inline bool operator==(const Settings &lhs, const Settings &rhs) {
   return
   lhs.cookie               == rhs.cookie               &&
   lhs.version              == rhs.version              &&

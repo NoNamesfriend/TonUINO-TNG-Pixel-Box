@@ -1,36 +1,5 @@
-# TonUINO - Pixel Box
-Das ist ein Fork der TonUINO Musikbox.
-Alle relevanten Informationen sind im Hauptrepositorie zu finden: https://github.com/tonuino/TonUINO-TNG
+# TonUINO – Pixel Box
 
-In diesem Fork wird die TonUINO Software mit der Integration von Adafruit NeoPixel erweitert.
+Dein Fork mit den Pixel-Box-Animationen auf Basis des offiziellen TonUINO-TNG.
 
-# Features
-Hier sind alle Features aufgelistet, die momentan ergänzt wurden.
-
-- Animation beim Starten der Box
-- Animation beim Abschalten der Box
-- Animation beim Auflegen einer neuen Karte
-- Animation während Song spielt
-- Animation wenn Song pausiert
-- Animation für nächster Song
-- Animation für vorheriger Song
-
-- Farbliche Darstellung der Lautstärke (Abhängig von Einstellungen Min/Max)
-- Farbliche Darstellung wenn im Admin Menü
-- Nachtlicht Modifier (Permanentes gelbes Licht und keine anderen Animationen)
-- Erstellen einer neuen Nachtlicht Modifier-Karte
-
-- Einstellung für Farbe der LEDs
-- Einstellung für Grundhelligkeit der Animationen
-- Einstellung für Auswahl einer Play-Animation
-- Einstellung für Helligkeit des Nachtlichts
-
-# Installation
-In der constant.hpp gibt es 3 Werte die angepasst werden können.
-NeoPixelPin: Standard Pin 18 (WS Pin auf Button Board AIO+).
-NeoPixelCount: Anzahl der verwendeten Pixel auf dem LED Streifen oder Ring.
-NeoPixelBrightness: Maximale Helligkeit der Pixel.
-
-# Hinweis
-Bis jetzt wurde diese Erwiterung nur mit der AIO+ getestet.
-Es ist noch unklar, ob es mit den anderen Platinen möglich ist oder zu Problemen führt.
+Die Konfiguration und der Updateablauf stehen in [docs/pixel-box-update.md](docs/pixel-box-update.md). Die offizielle Anleitung ist in [README-upstream.md](README-upstream.md) erhalten.

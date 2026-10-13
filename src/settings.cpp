@@ -2,6 +2,7 @@
 
 #include "constants.hpp"
 #include "logger.hpp"
+#include <stddef.h>
 
 namespace {
 
@@ -9,18 +10,49 @@ namespace {
 //  Address       Usage
 //    0- 99       Folder Settings (Hoerbuch Fortschritt)
 //  100-140       AdminSettings (41 Byte)
-//  141-155       reserved (15 Byte)
+//  141-147       reserved (ESP32/padding may use part of this)
+//  148-155       Pixel Box settings (5 data bytes, PB signature, version)
 //  156-255       extra Shortcuts (100 Byte, max. 25 Shortcuts)
 
 // Nano:      2048 byte
 // Nano Every: 256 byte
 // AiO:        512 byte (with framework-lgt8fx@1.0.6 emulated)
 // AiOplus:    256 byte
+// Esp32 Nano  256 byte (configured in EEPROM.begin())
 
 constexpr uint16_t startAddressFolderSettings =   0;
 constexpr uint16_t startAddressAdminSettings  = 100;
 constexpr uint16_t startAddressExtraShortcuts = 156;
 constexpr uint16_t endAddress                 = 256;
+
+#ifdef NeoPixels
+constexpr uint16_t startAddressPixelSettings = 148;
+constexpr uint16_t storedSettingsSize = offsetof(Settings, neoPixelHue);
+static_assert(startAddressAdminSettings + storedSettingsSize <= startAddressPixelSettings,
+              "Upstream settings overlap Pixel Box EEPROM storage");
+static_assert(startAddressPixelSettings + 8 <= startAddressExtraShortcuts,
+              "Pixel Box settings overlap extra shortcuts");
+
+void readPixelSettings(Settings& settings, uint16_t address) {
+  settings.neoPixelHue = EEPROM.read(address) | (static_cast<uint16_t>(EEPROM.read(address + 1)) << 8);
+  settings.neoPixelBaseValue = EEPROM.read(address + 2);
+  settings.neoPixelPlayAnimation = EEPROM.read(address + 3);
+  settings.neoPixelNightLightValue = EEPROM.read(address + 4);
+}
+
+void resetPixelSettings(Settings& settings) {
+  settings.neoPixelHue = 0;
+  settings.neoPixelBaseValue = 95;
+  settings.neoPixelPlayAnimation = 0;
+  settings.neoPixelNightLightValue = 255;
+}
+
+bool validPixelSettings(const Settings& settings) {
+  return settings.neoPixelHue <= 64000 && settings.neoPixelPlayAnimation < 2;
+}
+#else
+constexpr uint16_t storedSettingsSize = sizeof(Settings);
+#endif
 
 #ifdef BUTTONS3X3
 constexpr uint16_t maxExtraShortcuts = (endAddress - startAddressExtraShortcuts) / sizeof(folderSettings);
@@ -28,17 +60,45 @@ static_assert(buttonExtSC_buttons < maxExtraShortcuts, "Too many ExtraShortCuts"
 #endif
 }
 
+void Settings::init() {
+#ifdef TonUINO_Esp32
+  bool res = EEPROM.begin(endAddress);
+  LOG(settings_log, s_info, F("EEPROM begin: "), res);
+#endif
+}
+
+void Settings::commit() {
+#ifdef TonUINO_Esp32
+  bool res = EEPROM.commit();
+  LOG(settings_log, s_info, F("EEPROM commit: "), res);
+#endif
+}
+
 void Settings::clearEEPROM() {
   LOG(settings_log, s_info, F("clEEPROM"));
   for (uint16_t i = startAddressFolderSettings; i < endAddress; ++i) {
-    EEPROM.write(i, '\0');
+    EEPROM_put(i, '\0');
   }
+  commit();
 }
 
 void Settings::writeSettingsToFlash() {
-  static_assert(startAddressExtraShortcuts-startAddressAdminSettings > sizeof(Settings), "Settings to big");
+  static_assert(startAddressAdminSettings + storedSettingsSize < startAddressExtraShortcuts, "Settings too big");
   LOG(settings_log, s_debug, F("writeSettingsToFlash"));
-  EEPROM_put(startAddressAdminSettings, *this);
+  const byte* data = reinterpret_cast<const byte*>(this);
+  for (uint16_t i = 0; i < storedSettingsSize; ++i)
+    EEPROM.write(startAddressAdminSettings + i, data[i]);
+#ifdef NeoPixels
+  EEPROM.write(startAddressPixelSettings, neoPixelHue & 0xff);
+  EEPROM.write(startAddressPixelSettings + 1, neoPixelHue >> 8);
+  EEPROM.write(startAddressPixelSettings + 2, neoPixelBaseValue);
+  EEPROM.write(startAddressPixelSettings + 3, neoPixelPlayAnimation);
+  EEPROM.write(startAddressPixelSettings + 4, neoPixelNightLightValue);
+  EEPROM.write(startAddressPixelSettings + 5, 'P');
+  EEPROM.write(startAddressPixelSettings + 6, 'B');
+  EEPROM.write(startAddressPixelSettings + 7, 1);
+#endif
+  commit();
 }
 
 void Settings::resetSettings() {
@@ -66,10 +126,7 @@ void Settings::resetSettings() {
   hpMinVolume          =  5;
   hpInitVolume         = 15;
 #ifdef NeoPixels
-  neoPixelHue          = 0;
-  neoPixelBaseValue    = 95;
-  neoPixelPlayAnimation = 0;
-  neoPixelNightLightValue = 255;
+  resetPixelSettings(*this);
 #endif
 
   writeSettingsToFlash();
@@ -77,9 +134,43 @@ void Settings::resetSettings() {
 
 void Settings::loadSettingsFromFlash() {
   LOG(settings_log, s_debug, F("loadSettings"));
-  EEPROM_get(startAddressAdminSettings, *this);
-  if (cookie != cardCookie)
+  byte* data = reinterpret_cast<byte*>(this);
+  for (uint16_t i = 0; i < storedSettingsSize; ++i)
+    data[i] = EEPROM.read(startAddressAdminSettings + i);
+  if (cookie != cardCookie) {
     resetSettings();
+  }
+#ifdef NeoPixels
+  else {
+    const bool hasPixelSettings = EEPROM.read(startAddressPixelSettings + 5) == 'P'
+                              && EEPROM.read(startAddressPixelSettings + 6) == 'B'
+                              && EEPROM.read(startAddressPixelSettings + 7) == 1;
+    if (hasPixelSettings) {
+      readPixelSettings(*this, startAddressPixelSettings);
+    }
+    else {
+      resetPixelSettings(*this);
+#ifndef TonUINO_Esp32
+      // The old AVR fork appended five bytes at 141, without a signature.
+      // Only import plausible values; erased or upstream-only EEPROM uses defaults.
+      Settings legacy{};
+      readPixelSettings(legacy, startAddressAdminSettings + storedSettingsSize);
+      if (validPixelSettings(legacy) && legacy.neoPixelBaseValue >= 15
+          && legacy.neoPixelNightLightValue >= 15) {
+        neoPixelHue = legacy.neoPixelHue;
+        neoPixelBaseValue = legacy.neoPixelBaseValue;
+        neoPixelPlayAnimation = legacy.neoPixelPlayAnimation;
+        neoPixelNightLightValue = legacy.neoPixelNightLightValue;
+      }
+#endif
+    }
+    const bool invalid = !validPixelSettings(*this);
+    if (invalid)
+      resetPixelSettings(*this);
+    if (!hasPixelSettings || invalid)
+      writeSettingsToFlash();
+  }
+#endif
 
   if (pauseWhenCardRemoved == 255) {
     pauseWhenCardRemoved = 0;
@@ -111,11 +202,14 @@ void Settings::loadSettingsFromFlash() {
 
 void Settings::writeFolderSettingToFlash(uint8_t folder, uint8_t track) {
   if (folder < 100)
-    EEPROM.write(folder, track);
+    EEPROM_put(folder, track);
 }
 
 uint8_t Settings::readFolderSettingFromFlash(uint8_t folder) {
-  return (folder < 100)? EEPROM.read(folder) : 0;
+  uint8_t ret = 0;
+  if (folder < 100)
+    EEPROM_get(folder, ret);
+  return ret;
 }
 
 void Settings::writeExtShortCutToFlash (uint8_t shortCut, const folderSettings& value) {
@@ -130,6 +224,10 @@ void Settings::readExtShortCutFromFlash(uint8_t shortCut,       folderSettings& 
 
 
 folderSettings Settings::getShortCut(uint8_t shortCut) {
+#ifdef TonUINO_Esp32
+  if (shortCut == 0)
+    return cardFromWeb;
+#endif
   if (shortCut > 0 && shortCut <= 4)
     return shortCuts[shortCut-1];
 #ifdef BUTTONS3X3
@@ -144,6 +242,10 @@ folderSettings Settings::getShortCut(uint8_t shortCut) {
 }
 
 void Settings::setShortCut(uint8_t shortCut, const folderSettings& value) {
+#ifdef TonUINO_Esp32
+  if (shortCut == 0)
+    cardFromWeb = value;
+#endif
   if (shortCut > 0 && shortCut <= 4) {
     shortCuts[shortCut-1] = value;
     // writeSettingsToFlash(); -- will be done in state machine

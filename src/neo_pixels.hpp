@@ -1,3 +1,5 @@
+#include "constants.hpp"
+
 #ifdef NeoPixels
 
 #ifndef SRC_NEO_PIXELS_HPP_
@@ -39,12 +41,9 @@ public:
   void loop();
   void shutdown();
 
-  State &getState() { return state; }
-  void setState(State state)
-  {
-    if (!isStateBlocking)
-      this->state = state;
-  }
+  State getState() const { return state; }
+  void setState(State nextState);
+  void setNightLight(bool enabled);
   void resetUpdate() { animStepStart = millis(); }
   void updateFromSettings();
   void displayAll(uint16_t hue, uint8_t baseValue);
@@ -53,19 +52,20 @@ public:
 
 private:
   Adafruit_NeoPixel pixels;
-  State state;
-  State currentState;
-  PlayAnimation playAnimation;
-  uint16_t hue;
-  uint8_t baseValue;
-  uint8_t nightLightValue;
-  uint8_t step;
-  uint8_t miniStep;
-  unsigned long updatePause;
-  unsigned long animStepStart;
-  bool isPreparing;
-  bool isStateBlocking;
-  bool isAutoUnblock;
+  State state{State::idle};
+  State currentState{State::none};
+  State resumeState{State::idle};
+  PlayAnimation playAnimation{PlayAnimation::dotForwardPulse};
+  uint16_t hue{};
+  uint8_t baseValue{95};
+  uint8_t nightLightValue{255};
+  uint16_t step{};
+  uint8_t miniStep{};
+  unsigned long updatePause{};
+  unsigned long animStepStart{};
+  bool isPreparing{};
+  bool isStateBlocking{};
+  bool nightLightEnabled{};
 
   void animStartup();
   void animStartupOnInit();

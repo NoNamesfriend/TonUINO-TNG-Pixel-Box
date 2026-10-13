@@ -10,18 +10,23 @@
 #include "commands.hpp"
 #include "timer.hpp"
 
-#if not defined(ALLinONE_Plus) and not defined(TonUINO_Every) and not defined(TonUINO_Every_4808)
+#if not defined(ALLinONE_Plus) and not defined(TonUINO_Every) and not defined(TonUINO_Every_4808) and not defined(TonUINO_Esp32)
 #define USE_TIMER
 #define ROTARY_ENCODER_USES_TIMER
+#endif
+
+#ifndef TonUINO_Esp32
+#define IRAM_ATTR
 #endif
 
 class RotaryEncoder: public CommandSource {
 public:
 
   RotaryEncoder(const Settings& settings);
+  void init();
   commandRaw getCommandRaw() override;
 
-  static void changed();
+  static void IRAM_ATTR changed();
 #ifdef USE_TIMER
   static void timer_loop();
 #endif
@@ -32,6 +37,7 @@ private:
   const Settings& settings;
 
   volatile static int8_t  pos;
+  static Timer debounceTimer;
 #ifdef USE_TIMER
   volatile static uint8_t clk;
 #endif

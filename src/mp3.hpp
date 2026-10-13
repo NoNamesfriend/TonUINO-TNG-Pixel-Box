@@ -6,6 +6,11 @@
 #include <DFMiniMp3.h>
 
 #include "constants.hpp"
+
+#ifdef TonUINO_Esp32
+#include <mutex>
+#endif
+
 #include "settings.hpp"
 #include "queue.hpp"
 #include "timer.hpp"
@@ -27,7 +32,7 @@ class Mp3Notify;
 #define DFMiniMp3_T_CHIP_VARIANT Mp3ChipIncongruousNoAck
 #endif
 
-#if defined(DFMiniMp3_T_CHIP_GD3200B) or defined(DFMiniMp3_T_CHIP_LISP3) or defined(DFMiniMp3_T_CHIP_MH2024K24SS_MP3_TF_16P_V3_0)
+#if defined(DFMiniMp3_T_CHIP_GD3200B) or defined(DFMiniMp3_T_CHIP_MH2024K16SS) or defined(DFMiniMp3_T_CHIP_LISP3) or defined(DFMiniMp3_T_CHIP_MH2024K24SS_MP3_TF_16P_V3_0)
 #define DFMiniMp3_IGNORE_ONPLAYFINISHED_FOR_ADV
 #endif
 
@@ -43,6 +48,7 @@ enum class mp3Tracks: uint16_t {
   t_262_pling                  = 262,
   t_300_new_tag                = 300,
   t_301_select_folder          = 301,
+  t_302_select_last_folder     = 302,
   t_310_select_mode            = 310,
   t_311_mode_random_episode    = 311,
   t_312_mode_album             = 312,
@@ -58,9 +64,8 @@ enum class mp3Tracks: uint16_t {
   t_322_mode_quiz_game         = 322,
   t_323_mode_memory_game       = 323,
   t_324_mode_switch_bt         = 324,
-#ifdef NeoPixels
-  t_326_mode_night_light       = 326,
-#endif
+  t_325_mode_teapot_game       = 325,
+  t_326_special_audio_book     = 326,
   t_327_select_file            = 327,
   t_328_select_first_file      = 328,
   t_329_select_last_file       = 329,
@@ -93,6 +98,9 @@ enum class mp3Tracks: uint16_t {
   t_522_memory_game_bad        = 522,
   t_523_memory_game_1          = 523,
   t_524_memory_game_2          = 524,
+  t_530_teapot_game_intro      = 530,
+  t_531_teapot_game_continue   = 531,
+  t_532_teapot_game_solution   = 532,
   t_800_waiting_for_card       = 800,
   t_801_remove_card            = 801,
   t_802_reset_aborted          = 802,
@@ -164,11 +172,16 @@ enum class mp3Tracks: uint16_t {
   t_976_modifier_repeat1       = 976,
   t_977_modifier_bluetooth     = 977,
   t_978_modifier_jukebox       = 978,
-  t_980_admin_lock_intro       = 980,
-  t_981_admin_lock_disabled    = 981,
-  t_982_admin_lock_card        = 982,
-  t_983_admin_lock_pin         = 983,
-  t_984_admin_lock_calc        = 984,
+  t_979_modifier_pauseAftTr    = 979,
+  t_980_modifier_disableStandby= 980,
+#ifdef NeoPixels
+  t_982_modifier_night_light = 982,
+#endif
+  t_985_admin_lock_intro       = 985,
+  t_986_admin_lock_disabled    = 986,
+  t_987_admin_lock_card        = 987,
+  t_988_admin_lock_pin         = 988,
+  t_989_admin_lock_calc        = 989,
   t_991_admin_pin              = 991,
   t_992_admin_calc             = 992,
   t_993_admin_calc             = 993,
@@ -198,6 +211,10 @@ enum class advertTracks: uint16_t {
 #ifdef NeoPixels
   t_350_night_light            = 350,
 #endif
+  t_323_standby_timer_off      = 323,
+  t_324_standby_timer_on       = 324,
+  t_325_endless_off            = 325,
+  t_326_endless_on             = 326,
 };
 
 // implement a notification class,
@@ -224,11 +241,11 @@ public:
   Mp3(Settings& settings);
 
   void init();
-  bool isPlaying() const;
+  bool isPlaying() const { return is_playing_cache; }
   void waitForTrackToFinish();
   void waitForTrackToStart();
-  void playAdvertisement(uint16_t     track, bool olnyIfIsPlaying = true);
-  void playAdvertisement(advertTracks track, bool olnyIfIsPlaying = true);
+  void playAdvertisement(uint16_t     track, bool onlyIfIsPlaying = true);
+  void playAdvertisement(advertTracks track, bool onlyIfIsPlaying = true);
 
   void clearFolderQueue();
   void clearMp3Queue();
@@ -243,14 +260,17 @@ public:
   void enqueueTrack(uint8_t folder, uint8_t firstTrack, uint8_t lastTrack, uint8_t currentTrack = 0);
   void enqueueTrack(uint8_t folder, uint8_t track);
   void setEndless(bool v = true) { endless = v; }
+  bool isEndless() { return endless; }
   void shuffleQueue();
   void enqueueMp3FolderTrack(uint16_t  track, bool playAfter = false);
   void enqueueMp3FolderTrack(mp3Tracks track, bool playAfter = false);
   void playCurrent();
   void playNext(uint8_t tracks, bool fromOnPlayFinished);
   void playPrevious(uint8_t tracks = 1);
+  void jumpTo(uint8_t track);
   uint8_t getCurrentTrack() { return playing ? q.get(current_track) : 0; }
   uint16_t getFolderTrackCount(uint16_t folder);
+  uint8_t getCurrentFolder() { return current_folder; }
   bool isLastTrack() { return current_track+1 >= q.size(); }
 
   void start() { if (isPause) { isPause = false; Base::start();} }
@@ -274,14 +294,19 @@ public:
 
 #ifdef HPJACKDETECT
   void hpjackdetect         ();
-  bool isHeadphoneJackDetect() { return noHeadphoneJackDetect == level::inactive; }
+  bool isHeadphoneJackDetect() { return headphoneJackDetect; }
   void setTempSpkOn         () { tempSpkOn = 2; }
+#endif
+
+#ifdef TonUINO_Esp32
+  String getQueue();
 #endif
 
 private:
   friend class tonuino_fixture;
 
   void logVolume();
+  void refreshIsPlaying();
 
   typedef queue<uint8_t, maxTracksInFolder> track_queue;
 
@@ -307,10 +332,16 @@ private:
   uint8_t              current_folder{};
   uint16_t             current_track{};
   bool                 endless{false};
+#ifdef TonUINO_Esp32
+  std::mutex           q_mtx{};
+#endif
+
 
   // mp3 queue
   uint16_t             mp3_track{};
   uint16_t             mp3_track_next{};
+
+  bool                 is_playing_cache{};
 
   enum play_type: uint8_t {
     play_none,
@@ -326,7 +357,7 @@ private:
 #endif
 
 #ifdef HPJACKDETECT
-  level                noHeadphoneJackDetect{level::unknown};
+  bool                 headphoneJackDetect{};
   uint8_t              tempSpkOn{};
 #endif
 
