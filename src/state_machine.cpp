@@ -2025,7 +2025,6 @@ void Admin_SimpleSetting::react(command_e const &cmd_e) {
     neoPixels.displayAll(currentValue * 1000 - 1000, 255);
   else if (type == neoPixelBaseValue)
     neoPixels.displayAll(settings.neoPixelHue, currentValue * 16 - 1);
-    //TODO: Add Play Animation preview
   else if (type == neoPixelNightLightValue)
     neoPixels.displayAll(5000, currentValue * 16 - 1);
   #endif
@@ -2039,6 +2038,11 @@ void Admin_SimpleSetting::react(command_e const &cmd_e) {
 
   if (isAbort(cmd))
     return;
+
+#ifdef NeoPixels
+  if (type == neoPixelPlayAnimation && currentValue != 0)
+    neoPixels.previewPlayAnimation(static_cast<Neo_pixels::PlayAnimation>(currentValue - 1));
+#endif
 
   if (Commands::isSelect(cmd) && (currentValue != 0)) {
     switch (type) {

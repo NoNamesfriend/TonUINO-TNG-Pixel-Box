@@ -27,7 +27,8 @@ public:
     next,
     previous,
     volume,
-    night_light
+    night_light,
+    play_preview
   };
 
     enum class PlayAnimation : uint8_t
@@ -46,6 +47,7 @@ public:
   void setNightLight(bool enabled);
   void resetUpdate() { animStepStart = millis(); }
   void updateFromSettings();
+  void previewPlayAnimation(PlayAnimation animation);
   void displayAll(uint16_t hue, uint8_t baseValue);
   void displayAdmin();
   void displayNightLight();

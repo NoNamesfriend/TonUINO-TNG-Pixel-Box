@@ -44,6 +44,7 @@ void Neo_pixels::loop()
     animNewCard();
     break;
   case State::play:
+  case State::play_preview:
     animPlay();
     break;
   case State::pause:
@@ -65,6 +66,10 @@ void Neo_pixels::loop()
 
 void Neo_pixels::setState(State nextState)
 {
+  if (state == State::play_preview && nextState != State::play_preview) {
+    updateFromSettings();
+    currentState = State::none;
+  }
   if (nextState == State::idle || nextState == State::play
       || nextState == State::pause || nextState == State::admin) {
     resumeState = nextState;
@@ -579,6 +584,17 @@ void Neo_pixels::updateFromSettings()
   baseValue = Tonuino::getTonuino().getSettings().neoPixelBaseValue;
   playAnimation = static_cast<PlayAnimation>(Tonuino::getTonuino().getSettings().neoPixelPlayAnimation);
   nightLightValue = Tonuino::getTonuino().getSettings().neoPixelNightLightValue;
+}
+
+void Neo_pixels::previewPlayAnimation(PlayAnimation animation)
+{
+  if (animation >= PlayAnimation::NUMBER_OF_ANIMATIONS || nightLightEnabled || isStateBlocking)
+    return;
+  if (state == State::play_preview && playAnimation == animation)
+    return; // Continue the current animation instead of restarting each menu cycle.
+  playAnimation = animation;
+  state = State::play_preview;
+  currentState = State::none;
 }
 
 void Neo_pixels::displayAll(uint16_t hue, uint8_t baseValue)

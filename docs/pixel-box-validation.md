@@ -8,17 +8,23 @@ PlatformIO hat alle folgenden Varianten erfolgreich gebaut. Die Größen stammen
 
 | Build | Flash | Statisches RAM |
 | --- | ---: | ---: |
-| `PixelBox_AiOPlus_5` | 43.398 / 49.152 Byte | 1.236 / 6.144 Byte |
-| `PixelBox_AiOPlus_3` | 42.902 / 49.152 Byte | 1.200 / 6.144 Byte |
-| `PixelBox_AiOPlus_3x3` | 43.666 / 49.152 Byte | 1.217 / 6.144 Byte |
+| `PixelBox_AiOPlus_5` | 43.454 / 49.152 Byte | 1.236 / 6.144 Byte |
+| `PixelBox_AiOPlus_3` | 42.958 / 49.152 Byte | 1.200 / 6.144 Byte |
+| `PixelBox_AiOPlus_3x3` | 43.722 / 49.152 Byte | 1.217 / 6.144 Byte |
 | `ALLinONE_Plus_5f` mit offiziellem `NEO_RING` | 36.783 / 49.152 Byte | 1.237 / 6.144 Byte |
 | `TonUINO_Classic_3` ohne Pixel Box | 29.396 / 30.720 Byte | 1.529 / 2.048 Byte |
 
 Das dynamisch reservierte NeoPixel-Array und der Laufzeit-Stack sind in der statischen RAM-Zahl nicht enthalten. Die ursprünglichen Animationen bleiben in `src/neo_pixels.cpp`; `src/ring.cpp` entspricht weiterhin dem offiziellen Stand.
 
+Die ergänzte Animationsvorschau benötigt in allen drei Pixel-Box-Builds 56 Byte zusätzliches Flash und erhöht das statische RAM nicht. Im 5-Tasten-Build bleiben 5.698 Byte Flash frei. Die 12 RGB-LEDs benötigen im vorhandenen Adafruit-Puffer 36 Byte Heap zuzüglich Verwaltungsdaten. Die Vorschau legt keinen weiteren Puffer an und verwendet keine neuen EEPROM-Felder. Der Laufzeit-Stack ist weiterhin auf der Hardware zu beurteilen.
+
+Der ELF-Abgleich mit `avr-nm -C` zeigt im Pixel-Box-Build keine `Ring::`- oder `OneRing::`-Symbole und sechs `Neo_pixels::`-Symbole. Der offizielle `ALLinONE_Plus_5f`-Build enthält zehn Ring-Symbole. Die Quelldateien für den offiziellen Ring bleiben erhalten; `NEO_RING` schließt sie im Pixel-Box-Build über den Präprozessor aus. Die gemeinsame Adafruit-Bibliothek wird für den jeweils gewählten Treiber verwendet.
+
 ## Hosttests
 
 Die Tests wurden unter Windows mit GCC 11.2.0, C++17, den vorhandenen Hardware-Mocks und GoogleTest 1.16.0 kompiliert. Jeder Test lief in einem eigenen Prozess, entsprechend `gtest_discover_tests` in der CMake-Konfiguration. CMake selbst wurde lokal nicht ausgeführt.
+
+Für die Animationsvorschau wurden die drei betroffenen Pixel-Box-Konfigurationen erneut geprüft: insgesamt 212 erfolgreiche Tests. Die sieben offiziellen Hostkonfigurationen in der Tabelle wurden bei der vorherigen Upstream-Zusammenführung geprüft; die fünf Firmware-Builds oben wurden nach Ergänzung der Vorschau erneut gebaut.
 
 | Testkonfiguration | Bestandene Tests |
 | --- | ---: |
@@ -29,12 +35,14 @@ Die Tests wurden unter Windows mit GCC 11.2.0, C++17, den vorhandenen Hardware-M
 | AiO+ ohne Pixel Box, 3×3 | 92 |
 | AiO | 84 |
 | AiO, 3×3 | 92 |
-| AiO+ mit Pixel Box | 94 |
-| AiO+ mit Pixel Box, 3×3 | 102 |
-| Pixel-Box-Pfade mit allen Zusatzfunktionen des Standard-Builds | 10 |
-| Gesamt | 818 |
+| AiO+ mit Pixel Box | 96 |
+| AiO+ mit Pixel Box, 3×3 | 104 |
+| Pixel-Box-Pfade mit allen Zusatzfunktionen des Standard-Builds | 12 |
+| Gesamt | 824 |
 
 Die Zusatztests prüfen EEPROM-Übernahme, Erhalt von Lautstärke, Shortcuts und Hörbuchfortschritt, erneutes Laden nach der Migration, gelöschte/beschädigte LED-Daten, Kartenanimation mit anschließender Pause, Lautstärkeanzeige bei gleichen Grenzwerten, Nachtlichtwechsel, fortlaufenden Farbzyklus und den 32-Bit-Überlauf der Animationstimer. Die Menütests prüfen Adminoptionen 15 bis 18 samt Einleitungen sowie Nachtlichtoption 12 mit Ansage 0982. Die Feature-Konfiguration prüft diese Pixel-Box-Pfade mit den tatsächlich gesetzten Zusatzfunktionen; sie ersetzt keinen vollständigen Funktionstest von Quiz und Memory.
+
+Die Vorschautests prüfen den sichtbaren Animationswechsel, fortlaufende Frames ohne Neustart bei jedem Menüzyklus, unveränderte EEPROM-Daten vor Bestätigung, Wiederherstellung der bisherigen Animation beim Abbrechen und Speicherung der Auswahl bei Bestätigung.
 
 ## Audio und Paket
 

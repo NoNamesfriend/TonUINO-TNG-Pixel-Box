@@ -19,6 +19,8 @@ Die Pixel-Box-Builds verwenden die bestätigte Konfiguration: AiO+, 12 LEDs, WS-
 
 Erhalten sind Start- und Abschaltanimation, Kartenanimation, beide Wiedergabeanimationen `dotForwardPulse` und `colorCycle`, Pause, nächster/vorheriger Titel, Lautstärkefarben, Adminanzeige und gelbes Nachtlicht. Das Nachtlicht unterdrückt andere Lichteffekte bis zur Deaktivierung.
 
+Im Adminmenü unter Option 17 („Neo Pixel Play Animation“) läuft die aktuell gewählte Animation direkt auf dem Streifen. Die Tasten wechseln zwischen 1 (`dotForwardPulse`) und 2 (`colorCycle`); die Zahl wird weiterhin angesagt. Die Vorschau nutzt die gespeicherte Farbe und Grundhelligkeit. Bestätige mit der Pausetaste, um die Auswahl zu speichern. Beim Abbrechen bleiben die bisherige Einstellung und die gespeicherte Wiedergabeanimation erhalten. Die Vorschau verwendet denselben LED-Puffer und dieselben Animationsfunktionen wie die Wiedergabe.
+
 Die Pixel-Box-Builds behalten außerdem die bisherigen Optionen `DONT_ACCEPT_SAME_RFID_TWICE`, `RESUME_ON_SAME_RFID`, `REPLAY_ON_PLAY_BUTTON`, `QUIZ_GAME`, `MEMORY_GAME`, `STORE_LAST_CARD` und `BAT_VOLTAGE_MEASUREMENT` bei. Sie sind in `platformio.ini` auf diese Builds begrenzt.
 
 Die offiziellen Build-Varianten bleiben verfügbar. Beispielsweise aktiviert `ALLinONE_Plus_5f` den offiziellen `NEO_RING`. `NeoPixels` und `NEO_RING` können nicht gleichzeitig aktiviert werden; der Compiler meldet diese Konfiguration als Fehler. Das verhindert konkurrierende LED-Treiber.
@@ -53,6 +55,5 @@ Die lokale Prüfung ist in [pixel-box-validation.md](pixel-box-validation.md) do
 Weitere sinnvolle Verbesserungen außerhalb dieses Updates:
 
 - Start- und Abschaltanimation ohne `delay()` ausführen. Dadurch können RFID und Audiosteuerung während dieser Animationen weiterlaufen.
-- Die Auswahl der Wiedergabeanimation direkt im Einstellungsmenü animiert vorführen. Aktuell zeigt das Menü die Auswahl als Zahl an.
 - Nur geänderte EEPROM-Bytes schreiben. Das reduziert Schreibzugriffe beim Speichern der Einstellungen.
 - Menüoptionen und Soundnummern künftig in einer gemeinsamen Tabelle verwalten. Das verringert den Aufwand bei weiteren Upstream-Erweiterungen.
