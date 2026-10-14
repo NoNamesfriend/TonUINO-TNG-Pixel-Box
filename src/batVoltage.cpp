@@ -6,6 +6,9 @@
 #include "logger.hpp"
 #include "mp3.hpp"
 #include "neo_pixels.hpp"
+#ifdef NeoPixels
+#include "tonuino.hpp"
+#endif
 
 namespace {
 
@@ -89,6 +92,9 @@ bool BatVoltage::check() {
 
 void BatVoltage::lowMessage() {
   mp3.playAdvertisement(advertTracks::t_262_pling, false /*onlyIfIsPlaying*/);
+#ifdef NeoPixels
+  Tonuino::getTonuino().getNeoPixels().call_on_feedback(Neo_pixels::Feedback::battery);
+#endif
 }
 
 #endif // BAT_VOLTAGE_MEASUREMENT

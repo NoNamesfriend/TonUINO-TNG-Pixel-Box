@@ -20,6 +20,12 @@ void Neo_pixels::init(const Settings& settings)
   normalState = State::idle;
   isStateBlocking = false;
   nightLightEnabled = false;
+  timedNight = false;
+  lightMode = LightMode::normal;
+  feedback = Feedback::none;
+  gameSelection = GameSelection::none;
+  sleepEnabled = false;
+  sceneStarted = millis();
 
   staticFrame = false;
   pixels.clear();
@@ -29,8 +35,37 @@ void Neo_pixels::init(const Settings& settings)
 
 void Neo_pixels::loop(uint8_t volume, uint8_t minVolume, uint8_t maxVolume)
 {
-  if (nightLightEnabled)
+  if (!isShuttingDown() && feedback != Feedback::none) {
+    const uint32_t elapsed = static_cast<uint32_t>(millis()) - feedbackStarted;
+    const uint16_t duration = feedback == Feedback::recognized ? 900 : feedback == Feedback::locked ? 550
+                            : feedback == Feedback::game_good || feedback == Feedback::game_bad ? 1800 : 1600;
+    if (elapsed < duration) {
+      animFeedback(feedback, elapsed);
+      return;
+    }
+    feedback = Feedback::none;
+    renderedState = State::none;
+    staticFrame = false;
+  }
+  if (nightLightEnabled && normalState != State::admin && !isShuttingDown()) {
+    animNightLight();
     return;
+  }
+  if (state != State::startup && !isShuttingDown() && state != State::admin && state != State::play_preview
+      && state != State::new_card && state != State::next && state != State::previous && state != State::volume) {
+    if (sleepEnabled) {
+      animSleep();
+      return;
+    }
+    if (lightMode == LightMode::quiet) {
+      displayColor(scaleColor(0xffa62dUL, 33));
+      return;
+    }
+    if (gameSelection != GameSelection::none) {
+      animGame();
+      return;
+    }
+  }
   if (state != State::idle && state != State::admin && state != State::night_light)
     staticFrame = false;
   switch (state)
@@ -75,11 +110,22 @@ void Neo_pixels::setNormalState(State nextState)
 {
   const bool changed = normalState != nextState;
   normalState = nextState;
-  if (isShuttingDown() || state == State::startup || nightLightEnabled)
+  if (nextState != State::play)
+    gameSelection = GameSelection::none;
+  if (isShuttingDown() || state == State::startup)
     return;
-  // Admin owns live previews until the menu exits.
+  // Admin owns live previews, including while a night-light timer is running.
   if (state == State::play_preview && nextState == State::admin)
     return;
+  if (nightLightEnabled) {
+    if (state == State::play_preview) {
+      playAnimation = savedPlayAnimation;
+      renderedState = State::none;
+      staticFrame = false;
+    }
+    state = nextState == State::admin ? State::admin : State::night_light;
+    return;
+  }
   if (isStateBlocking && nextState != State::idle && nextState != State::admin)
     return;
   // A repeated normal-state update must not truncate short feedback.
@@ -104,15 +150,22 @@ void Neo_pixels::setState(State nextState)
   if (nightLightEnabled || isStateBlocking || isShuttingDown())
     return;
   state = nextState;
+  if (nextState == State::new_card) {
+    feedback = Feedback::none;
+    feedbackStarted = millis();
+  }
   if (nextState == State::new_card)
     isStateBlocking = true;
 }
 
 void Neo_pixels::setNightLight(bool enabled)
 {
-  if (isShuttingDown() || nightLightEnabled == enabled)
+  if (isShuttingDown() || (nightLightEnabled == enabled && !timedNight))
     return;
   nightLightEnabled = enabled;
+  timedNight = false;
+  feedback = Feedback::none;
+  staticFrame = false;
   isStateBlocking = false;
   renderedState = State::none;
   state = enabled ? State::night_light : normalState;
@@ -125,6 +178,7 @@ void Neo_pixels::shutdown()
   if (isShuttingDown())
     return;
   nightLightEnabled = false;
+  feedback = Feedback::none;
   isStateBlocking = false;
   staticFrame = false;
   state = State::shutdown;
@@ -180,59 +234,27 @@ void Neo_pixels::animAdmin()
 
 void Neo_pixels::animNewCard()
 {
-  if (renderedState != state)
-  {
-    isStateBlocking = true;
-    step = 1;
-    miniStep = 1;
-    updatePause = 50;
-    animStepStart = millis();
+  if (renderedState != state) {
     renderedState = state;
-
-    pixels.fill(pixels.ColorHSV(hue, 255, baseValue));
-    pixels.show();
+    feedbackStarted = millis();
+    animStepStart = millis() - cycleTime;
   }
-
-  if (static_cast<uint32_t>(millis() - animStepStart) < updatePause)
-    return;
-
-  animStepStart = millis();
-
-  pixels.fill(pixels.ColorHSV(hue, 255, baseValue));
-  const uint32_t peak = pixels.ColorHSV(hue, 255, 255);
-  pixels.setPixelColor(pixels.numPixels() / 2 + step - 1, peak);
-  pixels.setPixelColor(pixels.numPixels() / 2 - step, peak);
-
-  if (step > 1)
-  {
-    pixels.setPixelColor(pixels.numPixels() / 2 + step - 2, pixels.ColorHSV(hue, 255, 215));
-    pixels.setPixelColor(pixels.numPixels() / 2 - step + 1, pixels.ColorHSV(hue, 255, 215));
-  }
-  if (step > 2)
-  {
-    pixels.setPixelColor(pixels.numPixels() / 2 + step - 3, pixels.ColorHSV(hue, 255, 175));
-    pixels.setPixelColor(pixels.numPixels() / 2 - step + 2, pixels.ColorHSV(hue, 255, 215));
-  }
-  if (step > 3)
-  {
-    pixels.setPixelColor(pixels.numPixels() / 2 + step - 4, pixels.ColorHSV(hue, 255, 135));
-    pixels.setPixelColor(pixels.numPixels() / 2 - step + 3, pixels.ColorHSV(hue, 255, 215));
-  }
-
-  pixels.show();
-
-  step++;
-
-  if (step > pixels.numPixels() + 4)
-  {
-    step = 1;
+  const uint32_t elapsed = static_cast<uint32_t>(millis()) - feedbackStarted;
+  if (elapsed >= 900) {
     isStateBlocking = false;
     state = normalState;
+    renderedState = State::none;
+    return;
   }
+  animFeedback(Feedback::recognized, elapsed);
 }
 
 void Neo_pixels::animPlay()
 {
+  if (state == State::play && lightMode == LightMode::lively) {
+    animComet(true);
+    return;
+  }
   switch (playAnimation)
   {
   case PlayAnimation::dotForwardPulse:
@@ -240,6 +262,12 @@ void Neo_pixels::animPlay()
     break;
   case PlayAnimation::colorCycle:
     colorCycle();
+    break;
+  case PlayAnimation::comet:
+    animComet(false);
+    break;
+  case PlayAnimation::colorBlend:
+    animColorBlend();
     break;
   default:
     break;
@@ -453,7 +481,7 @@ void Neo_pixels::updateFromSettings(const Settings& settings)
 
 void Neo_pixels::previewPlayAnimation(PlayAnimation animation)
 {
-  if (animation >= PlayAnimation::NUMBER_OF_ANIMATIONS || nightLightEnabled || isStateBlocking || isShuttingDown())
+  if (animation >= PlayAnimation::NUMBER_OF_ANIMATIONS || (nightLightEnabled && normalState != State::admin) || isStateBlocking || isShuttingDown())
     return;
   if (state == State::play_preview && playAnimation == animation)
     return; // Continue the current animation instead of restarting each menu cycle.
@@ -464,7 +492,11 @@ void Neo_pixels::previewPlayAnimation(PlayAnimation animation)
 
 void Neo_pixels::displayAll(uint16_t displayHue, uint8_t value)
 {
-  const uint32_t color = pixels.ColorHSV(displayHue, 255, value);
+  displayColor(pixels.ColorHSV(displayHue, 255, value));
+}
+
+void Neo_pixels::displayColor(uint32_t color)
+{
   if (staticFrame && staticColor == color)
     return;
   pixels.fill(color);

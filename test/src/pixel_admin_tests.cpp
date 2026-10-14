@@ -155,4 +155,107 @@ TEST_F(pixel_admin_fixture, unchanged_hue_preview_does_not_send_frames_every_men
   execute_cycle_for_ms(1000);
   EXPECT_EQ(Adafruit_NeoPixel::showCount, shows);
 }
+
+class pixel_new_admin_fixture : public pixel_admin_fixture {
+public:
+  void write_and_decode(const folderSettings& expected) {
+    if (!SM_writeCard::is_in_state<WriteCard>()) execute_cycle();
+    ASSERT_TRUE(SM_writeCard::is_in_state<WriteCard>());
+    execute_cycle();
+    execute_cycle_for_ms(time_check_play);
+    getMp3().end_track(); execute_cycle();
+    card_in({1, pmode_t::album, 0, 0});
+    execute_cycle();
+    EXPECT_EQ(card_decode(), expected);
+  }
+  void goto_light_card_option(uint8_t option) {
+    goto_admin();
+    for (uint8_t i=0; i<6; ++i) {
+      button_for_command(command::next, state_for_command::admin);
+      execute_cycle_for_ms(time_check_play);
+      getMp3().end_track(); execute_cycle();
+    }
+    button_for_command(command::select, state_for_command::admin);
+    ASSERT_TRUE(SM_tonuino::is_in_state<Admin_ModCard>());
+    execute_cycle_for_ms(time_check_play);
+    getMp3().end_track(); execute_cycle();
+    for (uint8_t i=1; i<=option; ++i) {
+      button_for_command(command::next, state_for_command::admin);
+      execute_cycle_for_ms(time_check_play);
+      EXPECT_EQ(getMp3().df_mp3_track, pixelModifierSound(i));
+      getMp3().end_track(); execute_cycle();
+    }
+    button_for_command(command::select, state_for_command::admin);
+  }
+};
+
+TEST_F(pixel_new_admin_fixture, quiet_card_uses_option_13_prompt_1100_and_rfid_mode_200) {
+  goto_light_card_option(13);
+  EXPECT_EQ(SM_tonuino::folder.folder, 0);
+  EXPECT_EQ(SM_tonuino::folder.mode, pmode_t::pixel_quiet);
+  EXPECT_EQ(static_cast<uint8_t>(SM_tonuino::folder.mode), 200);
+  EXPECT_EQ(SM_tonuino::folder.special, 0);
+  write_and_decode({0, pmode_t::pixel_quiet, 0, 0});
+}
+
+TEST_F(pixel_new_admin_fixture, lively_card_uses_option_14_prompt_1101_and_rfid_mode_201) {
+  goto_light_card_option(14);
+  EXPECT_EQ(SM_tonuino::folder.folder, 0);
+  EXPECT_EQ(SM_tonuino::folder.mode, pmode_t::pixel_lively);
+  EXPECT_EQ(static_cast<uint8_t>(SM_tonuino::folder.mode), 201);
+  write_and_decode({0, pmode_t::pixel_lively, 0, 0});
+}
+
+TEST_F(pixel_new_admin_fixture, timed_night_card_defaults_to_30_minutes_and_uses_mode_202) {
+  goto_light_card_option(15);
+  EXPECT_EQ(SM_tonuino::folder.mode, pmode_t::timed_night_light);
+  execute_cycle_for_ms(time_check_play);
+  EXPECT_EQ(getMp3().df_mp3_track, 1103);
+  getMp3().end_track(); execute_cycle();
+  button_for_command(command::select, state_for_command::admin);
+  EXPECT_EQ(SM_tonuino::folder.special, 30);
+  EXPECT_EQ(static_cast<uint8_t>(SM_tonuino::folder.mode), 202);
+  execute_cycle();
+  EXPECT_EQ(SM_writeCard::folder, (folderSettings{0, pmode_t::timed_night_light, 30, 0}));
+  write_and_decode({0, pmode_t::timed_night_light, 30, 0});
+}
+
+TEST_F(pixel_new_admin_fixture, timed_night_duration_can_be_changed_to_15_minutes) {
+  goto_light_card_option(15);
+  execute_cycle_for_ms(time_check_play);
+  getMp3().end_track(); execute_cycle();
+  button_for_command(command::previous, state_for_command::admin);
+  execute_cycle_for_ms(time_check_play);
+  EXPECT_EQ(getMp3().df_mp3_track, 962);
+  getMp3().end_track(); execute_cycle();
+  button_for_command(command::select, state_for_command::admin);
+  EXPECT_EQ(SM_tonuino::folder.special, 15);
+  execute_cycle();
+  EXPECT_EQ(SM_writeCard::folder, (folderSettings{0, pmode_t::timed_night_light, 15, 0}));
+  write_and_decode({0, pmode_t::timed_night_light, 15, 0});
+}
+
+TEST_F(pixel_admin_fixture, both_new_effects_are_previewed_and_saved_only_after_confirmation) {
+  for (uint8_t effect=2; effect<=3; ++effect) {
+    getSettings().neoPixelPlayAnimation=0;
+    getSettings().writeSettingsToFlash();
+    goto_animation_setting();
+    for (uint8_t i=0; i<effect; ++i) {
+      button_for_command(command::next, state_for_command::admin);
+      getMp3().end_track(); execute_cycle();
+    }
+    EXPECT_EQ(getSettings().neoPixelPlayAnimation, 0);
+    EXPECT_EQ(EEPROM.read(151), 0);
+    EXPECT_EQ(tonuino.getNeoPixels().getState(), Neo_pixels::State::play_preview);
+    execute_cycle_for_ms(200);
+    const auto first=Adafruit_NeoPixel::frame;
+    execute_cycle_for_ms(1000);
+    EXPECT_NE(Adafruit_NeoPixel::frame, first);
+    getMp3().end_track(); execute_cycle();
+    button_for_command(command::select, state_for_command::admin);
+    EXPECT_EQ(getSettings().neoPixelPlayAnimation, effect);
+    EXPECT_EQ(EEPROM.read(151), effect);
+    goto_idle();
+  }
+}
 #endif

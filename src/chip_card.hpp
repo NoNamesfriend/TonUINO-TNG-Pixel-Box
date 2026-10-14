@@ -6,6 +6,9 @@
 #include <MFRC522.h>
 
 #include "constants.hpp"
+#ifdef NeoPixels
+#include "pixel_box.hpp"
+#endif
 
 enum class pmode_t: uint8_t {
   none          =   0,
@@ -42,6 +45,9 @@ enum class pmode_t: uint8_t {
   endless_sw    =  11,
 #ifdef NeoPixels
   night_light   =  12,
+  pixel_quiet   = pixelQuietCardMode,
+  pixel_lively  = pixelLivelyCardMode,
+  timed_night_light = pixelTimedNightCardMode,
 #endif
 
   admin_card    = 0xff,

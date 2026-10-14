@@ -1,6 +1,8 @@
 #ifndef SRC_TIMER_HPP_
 #define SRC_TIMER_HPP_
 
+#include <stdint.h>
+
 class Timer {
 public:
   void start(unsigned long timeout);
@@ -9,7 +11,8 @@ public:
   bool isActive() { return active; }
   unsigned long remainingTime();
 private:
-  unsigned long expireTime{0    };
+  // Deadlines are compared modulo 32 bits. Timeouts must be below 2^31 ms.
+  uint32_t expireTime{0    };
   bool          active    {false};
 };
 

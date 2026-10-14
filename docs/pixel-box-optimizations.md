@@ -1,6 +1,8 @@
 # Pixel-Box-Optimierungen vom 14. Oktober 2026
 
-Die zehn Punkte aus der Codeprüfung sind umgesetzt. Die Animationen verwenden weiterhin einen Adafruit-Treiber für 12 LEDs am WS-Pin 18 und dessen vorhandenen 36-Byte-RGB-Puffer. Es gibt keinen zusätzlichen Animationspuffer.
+Die zehn Punkte aus der Codeprüfung sind umgesetzt. Dieses Dokument beschreibt den Optimierungsstand `e8a1dfb` vor den anschließend ausgewählten Effekten. Die neuen Animationen und Lichtkarten stehen in [pixel-box-light-cards.md](pixel-box-light-cards.md); aktuelle Speicherwerte stehen in [pixel-box-validation.md](pixel-box-validation.md).
+
+Die Animationen verwenden weiterhin einen Adafruit-Treiber für 12 LEDs am WS-Pin 18 und dessen vorhandenen 36-Byte-RGB-Puffer. Es gibt keinen zusätzlichen Animationspuffer.
 
 | Punkt | Änderung | Warum das hilft |
 | --- | --- | --- |

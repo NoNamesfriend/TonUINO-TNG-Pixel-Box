@@ -4,13 +4,13 @@
 #include <Arduino.h>
 
 void Timer::start(unsigned long timeout) {
-  expireTime = millis() + timeout;
+  expireTime = static_cast<uint32_t>(millis()) + static_cast<uint32_t>(timeout);
   active = true;
 }
 bool Timer::isExpired() {
   if (not active)
     return true;
-  if (expireTime <= millis()) {
+  if (static_cast<int32_t>(static_cast<uint32_t>(millis()) - expireTime) >= 0) {
     active = false;
     return true;
   }
@@ -24,6 +24,7 @@ void Timer::stop() {
 unsigned long Timer::remainingTime() {
   if (not active)
     return 0xffffffff;
-  return expireTime - millis();
+  const int32_t remaining = expireTime - static_cast<uint32_t>(millis());
+  return remaining > 0 ? static_cast<uint32_t>(remaining) : 0;
 }
 

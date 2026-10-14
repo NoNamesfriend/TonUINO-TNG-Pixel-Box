@@ -176,6 +176,10 @@ enum class mp3Tracks: uint16_t {
   t_980_modifier_disableStandby= 980,
 #ifdef NeoPixels
   t_982_modifier_night_light = 982,
+  t_1100_modifier_quiet_light = 1100,
+  t_1101_modifier_lively_light = 1101,
+  t_1102_modifier_timed_night = 1102,
+  t_1103_night_duration_intro = 1103,
 #endif
   t_985_admin_lock_intro       = 985,
   t_986_admin_lock_disabled    = 986,
@@ -210,6 +214,9 @@ enum class advertTracks: uint16_t {
   t_322_bt_pairing             = 322,
 #ifdef NeoPixels
   t_350_night_light            = 350,
+  t_351_quiet_light            = 351,
+  t_352_lively_light           = 352,
+  t_353_timed_night_light      = 353,
 #endif
   t_323_standby_timer_off      = 323,
   t_324_standby_timer_on       = 324,

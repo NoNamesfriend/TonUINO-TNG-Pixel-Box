@@ -7,8 +7,20 @@
 enum class PixelPlayAnimation : uint8_t {
   dotForwardPulse = 0,
   colorCycle = 1,
-  NUMBER_OF_ANIMATIONS = 2
+  comet = 2,
+  colorBlend = 3,
+  NUMBER_OF_ANIMATIONS = 4
 };
+
+// Fork extensions: folder 0 is mandatory. Menu positions are separate from
+// stored RFID IDs and from system prompt numbers.
+constexpr uint8_t pixelQuietCardMode = 200;
+constexpr uint8_t pixelLivelyCardMode = 201;
+constexpr uint8_t pixelTimedNightCardMode = 202;
+constexpr uint8_t pixelDefaultNightMinutes = 30;
+constexpr uint16_t pixelModifierSound(uint8_t option) {
+  return option >= 13 ? 1100u + option - 13 : 970u + option;
+}
 
 constexpr uint16_t pixelHueFromOption(uint8_t option) {
   return static_cast<uint16_t>(option - 1) * 1000u;

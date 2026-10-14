@@ -45,6 +45,10 @@ public:
 
   pmode_t getActive () final { return pmode_t::sleep_timer; }
   void   init(pmode_t, uint8_t) final;
+#ifdef NeoPixels
+  uint8_t pixelRemaining();
+  bool pixelWaitingForTrack() const { return stopAfterTrackFinished_active; }
+#endif
 
 #ifdef TonUINO_Esp32
   String getDescription() final;
@@ -52,6 +56,9 @@ public:
 
 private:
   Timer sleepTimer{};
+#ifdef NeoPixels
+  uint32_t pixelDuration{};
+#endif
   bool  stopAfterTrackFinished{};
   bool  stopAfterTrackFinished_active{};
   bool  fired{};
@@ -87,7 +94,7 @@ private:
 class ToddlerMode: public Modifier {
 public:
   ToddlerMode() {}
-  bool handleButton(command) final { LOG(modifier_log, s_debug, F("ToddlerMode::Button -> LOCKED!")); return true; }
+  bool handleButton(command cmd) final;
 
   pmode_t getActive()        final { return pmode_t::toddler; }
 

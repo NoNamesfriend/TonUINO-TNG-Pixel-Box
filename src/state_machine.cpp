@@ -90,7 +90,12 @@ void VoiceMenu<SMT>::entry(bool entryPlayAfter) {
 
 template<SM_type SMT>
 void VoiceMenu<SMT>::playCurrentValue() {
-  mp3.enqueueMp3FolderTrack(messageOffset + currentValue);
+#ifdef NeoPixels
+  if (messageOffset == mp3Tracks::t_970_modifier_Intro)
+    mp3.enqueueMp3FolderTrack(static_cast<mp3Tracks>(pixelModifierSound(currentValue)));
+  else
+#endif
+    mp3.enqueueMp3FolderTrack(messageOffset + currentValue);
   previewStarted = false;
 }
 
@@ -534,9 +539,20 @@ void WriteCard::react(command_e const &cmd_e) {
 bool Base::readCard() {
   lastCardRead.mode = pmode_t::none;
   switch(chip_card.readCard(lastCardRead)) {
-  case Chip_card::readCardEvent::none : return false;
+  case Chip_card::readCardEvent::none :
+#ifdef NeoPixels
+    neoPixels.call_on_feedback(Neo_pixels::Feedback::read_error);
+#endif
+    return false;
 
   case Chip_card::readCardEvent::known:
+#ifdef NeoPixels
+    if (lastCardRead.folder != 0 && static_cast<uint8_t>(lastCardRead.mode) >= pixelQuietCardMode
+        && static_cast<uint8_t>(lastCardRead.mode) <= pixelTimedNightCardMode) {
+      neoPixels.call_on_feedback(Neo_pixels::Feedback::read_error);
+      return false;
+    }
+#endif
 #ifdef BT_MODULE
     if (lastCardRead.mode == pmode_t::switch_bt) {
       tonuino.switchBtModuleOnOff();
@@ -551,12 +567,19 @@ bool Base::readCard() {
         return false;
       }
 
-      if (tonuino.specialCard(lastCardRead))
+      if (tonuino.specialCard(lastCardRead)) {
+#ifdef NeoPixels
+        neoPixels.call_on_feedback(Neo_pixels::Feedback::recognized);
+#endif
         return false;
+      }
     }
     break;
 
   case Chip_card::readCardEvent::empty:
+#ifdef NeoPixels
+    neoPixels.call_on_feedback(Neo_pixels::Feedback::empty_card);
+#endif
     LOG(state_log, s_debug, str_Base(), str_to(), str_Admin_NewCard());
     Admin_NewCard::return_to_idle = true;
     mp3.enqueueMp3FolderTrack(mp3Tracks::t_300_new_tag);
@@ -565,8 +588,12 @@ bool Base::readCard() {
     return false;
   }
 
-  if (tonuino.getActiveModifier().handleRFID(lastCardRead))
+  if (tonuino.getActiveModifier().handleRFID(lastCardRead)) {
+#ifdef NeoPixels
+    neoPixels.call_on_feedback(Neo_pixels::Feedback::recognized);
+#endif
     return false;
+  }
 
   if (lastCardRead.folder != 0) {
     return true;
@@ -1164,6 +1191,9 @@ void Quiz::react(command_e const &cmd_e) {
       a.shuffle();
       mp3.enqueueTrack(tonuino.getFolder(), trackQuestion);
       quizState = QuizState::playAnswer;
+#ifdef NeoPixels
+      neoPixels.setGameSelection(Neo_pixels::GameSelection::quiz);
+#endif
       actAnswer = 0xff;
       break;
     case QuizState::playAnswer:
@@ -1173,11 +1203,20 @@ void Quiz::react(command_e const &cmd_e) {
       else if (actAnswer == 0) {
         LOG(state_log, s_debug, F("richtig"));
         mp3.enqueueMp3FolderTrack(mp3Tracks::t_501_quiz_game_ok+numSolution*2);
+#ifdef NeoPixels
+        neoPixels.call_on_feedback(Neo_pixels::Feedback::game_good);
+#endif
       }
       else {
         LOG(state_log, s_debug, F("falsch"));
         mp3.enqueueMp3FolderTrack(mp3Tracks::t_502_quiz_game_bad+numSolution*2);
+#ifdef NeoPixels
+        neoPixels.call_on_feedback(Neo_pixels::Feedback::game_bad);
+#endif
       }
+#ifdef NeoPixels
+      neoPixels.setGameSelection(Neo_pixels::GameSelection::none);
+#endif
       if (numSolution == 1)
         quizState = QuizState::playSolution;
       else
@@ -1345,13 +1384,22 @@ void Memory::react(command_e const &cmd_e) {
           ((first   == second+1) && (second%2 == 1))   ) {
         // match
         mp3.enqueueMp3FolderTrack(mp3Tracks::t_521_memory_game_ok);
+#ifdef NeoPixels
+        neoPixels.call_on_feedback(Neo_pixels::Feedback::game_good);
+#endif
       }
       else {
         // no match
         mp3.enqueueMp3FolderTrack(mp3Tracks::t_522_memory_game_bad);
+#ifdef NeoPixels
+        neoPixels.call_on_feedback(Neo_pixels::Feedback::game_bad);
+#endif
       }
       first  = 0;
       second = 0;
+#ifdef NeoPixels
+      neoPixels.setGameSelection(Neo_pixels::GameSelection::none);
+#endif
     }
     break;
 
@@ -1398,13 +1446,22 @@ void Memory::react(card_e const &c_e) {
         handleReadCard();
     }
     else if (lastCardRead.mode == pmode_t::memory_game && lastCardRead.folder == 0) {
+#ifdef NeoPixels
+      neoPixels.call_on_feedback(Neo_pixels::Feedback::recognized);
+#endif
       if (first == 0) {
         first = lastCardRead.special;
+#ifdef NeoPixels
+        neoPixels.setGameSelection(Neo_pixels::GameSelection::first);
+#endif
         mp3.enqueueTrack(tonuino.getFolder(), lastCardRead.special);
       }
       else if (second == 0) {
         if (first != lastCardRead.special) {
           second = lastCardRead.special;
+#ifdef NeoPixels
+          neoPixels.setGameSelection(Neo_pixels::GameSelection::second);
+#endif
           mp3.enqueueTrack(tonuino.getFolder(), lastCardRead.special);
         }
       }
@@ -2051,7 +2108,7 @@ void Admin_ModCard::entry() {
 
   numberOfOptions   = 11;
 #ifdef NeoPixels
-  ++numberOfOptions;
+  numberOfOptions += 4;
 #endif
   startMessage      = mp3Tracks::t_970_modifier_Intro;
   messageOffset     = mp3Tracks::t_970_modifier_Intro;
@@ -2084,7 +2141,20 @@ void Admin_ModCard::react(command_e const &cmd_e) {
   case get_mode           :
     if (Commands::isSelect(cmd) && (currentValue != 0)) {
       folder.mode = static_cast<pmode_t>(currentValue);
-
+#ifdef NeoPixels
+      if (currentValue >= 13)
+        folder.mode = static_cast<pmode_t>(pixelQuietCardMode + currentValue - 13);
+      if (folder.mode == pmode_t::timed_night_light) {
+        numberOfOptions = 4;
+        startMessage = mp3Tracks::t_1103_night_duration_intro;
+        messageOffset = mp3Tracks::t_960_timer_intro;
+        VoiceMenu::entry();
+        currentValue = 3; // 30 minutes is selected by default.
+        folder.special = pixelDefaultNightMinutes;
+        current_subState = get_sleeptime_timer;
+      }
+      else
+#endif
       if (folder.mode == pmode_t::sleep_timer) {
         numberOfOptions   = 4;
         startMessage      = mp3Tracks::t_960_timer_intro;
@@ -2121,6 +2191,12 @@ void Admin_ModCard::react(command_e const &cmd_e) {
         folder.special = 60;
         break;
       }
+#ifdef NeoPixels
+      if (folder.mode == pmode_t::timed_night_light) {
+        current_subState = start_writeCard;
+        break;
+      }
+#endif
       numberOfOptions   = 2;
       startMessage      = mp3Tracks::t_938_modifier_sleep_mode;
       messageOffset     = mp3Tracks::t_933_switch_volume_intro;

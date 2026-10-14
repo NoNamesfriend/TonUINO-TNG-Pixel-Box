@@ -66,13 +66,38 @@ void SleepTimer::init(pmode_t, uint8_t special /* is minutes*/) {
   } else {
     stopAfterTrackFinished = false;
   }
-  sleepTimer.start(special * 60000);
+  const uint32_t duration = static_cast<uint32_t>(special) * 60000UL;
+  sleepTimer.start(duration);
+#ifdef NeoPixels
+  pixelDuration = duration;
+#endif
+}
+
+#ifdef NeoPixels
+uint8_t SleepTimer::pixelRemaining() {
+  if (fired || stopAfterTrackFinished_active || pixelDuration == 0) return 0;
+  return min(255UL, sleepTimer.remainingTime() * 255UL / pixelDuration);
+}
+#endif
+
+bool ToddlerMode::handleButton(command cmd) {
+#ifdef NeoPixels
+  if (cmd != command::none)
+    tonuino.getNeoPixels().call_on_feedback(Neo_pixels::Feedback::locked);
+#else
+  (void)cmd;
+#endif
+  LOG(modifier_log, s_debug, F("ToddlerMode::Button -> LOCKED!"));
+  return true;
 }
 
 bool SleepTimer::handleButton(command cmd) {
   if ((cmd == command::next || cmd == command::next10 || cmd == command::previous || cmd == command::previous10)
       && stopAfterTrackFinished_active) {
     LOG(modifier_log, s_debug, F("SleepTimer: prev and next -> LOCKED!"));
+#ifdef NeoPixels
+    tonuino.getNeoPixels().call_on_feedback(Neo_pixels::Feedback::locked);
+#endif
     return true;
   }
   return false;
@@ -156,7 +181,7 @@ void DanceGame::setNextStop(bool addAdvTime) {
     }
   }
   LOG(modifier_log, s_debug, str_danceGame(), F(" next stop in "), seconds);
-  stopTimer.start(seconds * 1000);
+  stopTimer.start(static_cast<uint32_t>(seconds) * 1000UL);
 }
 
 #ifdef TonUINO_Esp32
@@ -197,6 +222,10 @@ bool KindergardenMode::handleRFID(const folderSettings &newCard) {
 bool KindergardenMode::handleButton(command cmd) {
   if (cmd != command::pause) {
     LOG(modifier_log, s_debug, F("KindergardenMode::NextButton -> LOCKED!"));
+#ifdef NeoPixels
+    if (cmd != command::none)
+      tonuino.getNeoPixels().call_on_feedback(Neo_pixels::Feedback::locked);
+#endif
     return true;
   }
   return false;

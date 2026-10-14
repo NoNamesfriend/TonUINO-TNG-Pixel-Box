@@ -42,7 +42,8 @@ public:
 
   void resetActiveModifier   () {
 #ifdef NeoPixels
-    neo_pixels.setNightLight(false);
+    if (activeModifier == &nightLight)
+      neo_pixels.setNightLight(false);
 #endif
     activeModifier = &noneModifier;
   }
@@ -53,6 +54,9 @@ public:
   unsigned long getRemainingStandbyTimer() { return standbyTimer.remainingTime(); }
 
   void setMyFolder(const folderSettings &newFolder, bool a_myFolderIsCard) {
+#ifdef NeoPixels
+    neo_pixels.setGameSelection(Neo_pixels::GameSelection::none);
+#endif
 #ifdef STORE_LAST_CARD
     if (not (myFolder == newFolder)) {
       LOG(init_log, s_debug, F("set last, folder: "), newFolder.folder, F(", mode: "), static_cast<uint8_t>(newFolder.mode));
