@@ -47,6 +47,10 @@ TEST_F(tonuino_test_fixture, SleepTimer_in_play) {
   EXPECT_TRUE(SM_tonuino::is_in_state<Pause>());
 
   tonuino.resetActiveModifier();
+#ifdef NeoPixels
+  // The sleep mock returns; the real box is off. Simulate a fresh boot.
+  tonuino.setup();
+#endif
   goto_idle();
   //EXPECT_TRUE(false) << "log: " << Print::get_output();
 }
@@ -85,6 +89,10 @@ TEST_F(tonuino_test_fixture, SleepTimer_in_idle) {
   EXPECT_TRUE(SM_tonuino::is_in_state<Pause>());
 
   tonuino.resetActiveModifier();
+#ifdef NeoPixels
+  // The sleep mock returns; the real box is off. Simulate a fresh boot.
+  tonuino.setup();
+#endif
   goto_idle();
   //EXPECT_TRUE(false) << "log: " << Print::get_output();
 }

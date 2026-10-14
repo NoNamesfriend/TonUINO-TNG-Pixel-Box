@@ -14,18 +14,41 @@ public:
   inline static unsigned int showCount{};
   Adafruit_NeoPixel(uint16_t count, uint8_t, uint16_t) : colors(count) {}
   void begin() {}
-  void setBrightness(uint8_t) {}
+  void setBrightness(uint8_t value) {
+    const uint8_t next = value + 1;
+    if (next == brightness) return;
+    const uint8_t old = brightness - 1;
+    const uint16_t scale = old == 0 ? 0 : value == 255 ? 65535 / old
+                                                       : ((static_cast<uint16_t>(next) << 8) - 1) / old;
+    for (auto& color : colors) {
+      color = (static_cast<uint32_t>(((color >> 16) & 255) * scale >> 8) << 16)
+            | (static_cast<uint32_t>(((color >> 8) & 255) * scale >> 8) << 8)
+            | ((color & 255) * scale >> 8);
+    }
+    brightness = next;
+  }
   uint16_t numPixels() const { return colors.size(); }
   void show() { frame = colors; ++showCount; }
   void clear() { fill(0); }
   void fill(uint32_t color, uint16_t first = 0) {
-    for (uint16_t i = first; i < colors.size(); ++i) colors[i] = color;
+    for (uint16_t i = first; i < colors.size(); ++i) setPixelColor(i, color);
   }
   void setPixelColor(uint16_t i, uint32_t color) {
-    if (i < colors.size()) colors[i] = color;
+    if (i >= colors.size()) return;
+    if (brightness) {
+      color = (static_cast<uint32_t>(((color >> 16) & 255) * brightness >> 8) << 16)
+            | (static_cast<uint32_t>(((color >> 8) & 255) * brightness >> 8) << 8)
+            | ((color & 255) * brightness >> 8);
+    }
+    colors[i] = color;
   }
   uint32_t getPixelColor(uint16_t i) const {
-    return i < colors.size() ? colors[i] : 0;
+    if (i >= colors.size()) return 0;
+    const uint32_t color = colors[i];
+    if (!brightness) return color;
+    return ((((color >> 16) & 255) << 8) / brightness << 16)
+         | ((((color >> 8) & 255) << 8) / brightness << 8)
+         | (((color & 255) << 8) / brightness);
   }
   static uint32_t ColorHSV(uint16_t hue, uint8_t saturation = 255, uint8_t value = 255) {
     // Mirror the real driver's integer HSV conversion; no electrical timing.
@@ -53,5 +76,6 @@ public:
   }
 private:
   std::vector<uint32_t> colors;
+  uint8_t brightness{};
 };
 #endif

@@ -44,6 +44,7 @@ ISR(TIMER1_COMPA_vect){
 #endif
 
 void Tonuino::setup() {
+  request_shutdown = false;
 #ifdef USE_LED_BUTTONS
   ledManager.begin();
 #endif
@@ -126,7 +127,7 @@ void Tonuino::setup() {
 
   // init state machine
   #ifdef NeoPixels
-  neo_pixels.init();
+  neo_pixels.init(settings);
   #endif
 
   SM_tonuino::start();
@@ -205,17 +206,44 @@ void Tonuino::setup_adc() {
 void Tonuino::loop() {
 
   unsigned long  start_cycle = millis();
+#ifdef NeoPixels
+  // Once power-off is requested, finish LED frames while servicing audio.
+  // Ignore new card/button actions which could restart playback during shutdown.
+  if (neo_pixels.isShuttingDown()) {
+    mp3.loop();
+    neo_pixels.loop();
+    if (neo_pixels.shutdownFinished())
+      shutdown();
+    const uint32_t elapsed = millis() - start_cycle;
+    if (elapsed < cycleTime)
+      delay(cycleTime - elapsed);
+    return;
+  }
+  const uint8_t previousVolume = mp3.getVolume();
+#endif
   checkStandby();
 
   if (request_shutdown) {
+#ifndef NeoPixels
     delay(100);
+#endif
     shutdown();
+#ifndef NeoPixels
     delay(1000);
+#endif
   }
 
 #ifdef BAT_VOLTAGE_MEASUREMENT
   if (batVoltage.check())
     shutdown();
+#endif
+
+#ifdef NeoPixels
+  if (neo_pixels.isShuttingDown()) {
+    mp3.loop();
+    delay(cycleTime);
+    return;
+  }
 #endif
 
 #ifdef HPJACKDETECT
@@ -225,12 +253,38 @@ void Tonuino::loop() {
 
   activeModifier->loop();
 
-  #ifdef NeoPixels
-  neo_pixels.loop();
-  #endif
+#ifdef NeoPixels
+  if (!neo_pixels.isShuttingDown()) {
+#endif
+    SM_tonuino::dispatch(command_e(commands.getCommandRaw()));
+    SM_tonuino::dispatch(card_e(chip_card.getCardEvent()));
+#ifdef NeoPixels
+  }
+#endif
 
-  SM_tonuino::dispatch(command_e(commands.getCommandRaw()));
-  SM_tonuino::dispatch(card_e(chip_card.getCardEvent()));
+#ifdef NeoPixels
+  if (SM_tonuino::is_in_state<Idle>())
+    neo_pixels.setNormalState(Neo_pixels::State::idle);
+  else if (SM_tonuino::is_in_state<Pause>())
+    neo_pixels.setNormalState(Neo_pixels::State::pause);
+  else if (SM_tonuino::is_in_state<Play>() || SM_tonuino::is_in_state<StartPlay<Play>>()
+#ifdef QUIZ_GAME
+        || SM_tonuino::is_in_state<Quiz>() || SM_tonuino::is_in_state<StartPlay<Quiz>>()
+#endif
+#ifdef MEMORY_GAME
+        || SM_tonuino::is_in_state<Memory>() || SM_tonuino::is_in_state<StartPlay<Memory>>()
+#endif
+#ifdef TEAPOT_GAME
+        || SM_tonuino::is_in_state<Teapot>() || SM_tonuino::is_in_state<StartPlay<Teapot>>()
+#endif
+          )
+    neo_pixels.setNormalState(Neo_pixels::State::play);
+  else
+    neo_pixels.setNormalState(Neo_pixels::State::admin);
+  if (mp3.getVolume() != previousVolume)
+    neo_pixels.call_on_volume();
+  neo_pixels.loop(mp3.getVolume(), mp3.getMinVolume(), mp3.getMaxVolume());
+#endif
 
 #ifdef NEO_RING
 #ifdef NEO_RING_EXT
@@ -529,6 +583,16 @@ void Tonuino::checkStandby() {
 }
 
 void Tonuino::shutdown() {
+#ifdef NeoPixels
+  if (!neo_pixels.isShuttingDown()) {
+    request_shutdown = true;
+    standbyTimer.stop();
+    neo_pixels.shutdown();
+    return;
+  }
+  if (!neo_pixels.shutdownFinished())
+    return;
+#endif
   LOG(standby_log, s_info, F("power off!"));
 
 #ifdef ESP32
@@ -539,9 +603,6 @@ void Tonuino::shutdown() {
   ring.call_on_sleep();
 #endif
 
-#ifdef NeoPixels
-  neo_pixels.shutdown();
-#endif
 #ifdef USE_LED_BUTTONS
   ledManager.setState(ledState::shutdown);
 #endif

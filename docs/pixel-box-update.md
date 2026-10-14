@@ -42,7 +42,7 @@ Die Nachtlicht-Modifikationskarte verwendet Modus 12 und Menüansage `mp3/0982_m
 
 Die deutschen Katalogeinträge wurden mit diesen Nummern abgeglichen. Die vorhandenen eigenen Sounddateien bleiben erhalten. Nur die Grundhelligkeitsansagen 0916 und 0951 wurden korrigiert: Sie hatten von „Farbe“ gesprochen. Die neuen Dateien wurden lokal mit der deutschen Windows-Stimme „Microsoft Katja“ erzeugt. Die Pixel-Box-Ansagen sind derzeit nur im deutschen SD-Paket enthalten; die offiziellen englischen und französischen Pakete enthalten diese Ergänzungen nicht.
 
-Im AVR-EEPROM bleiben TonUINO-Einstellungen bei Adresse 100 und zusätzliche Shortcuts ab 156. Die fünf LED-Datenbytes liegen separat bei 148 bis 152; 153 bis 155 enthalten Kennung `PB` und Formatversion 1. Der erste Start übernimmt plausible Werte des bisherigen AVR-Forks ab Adresse 141. Gelöschte oder ungültige Werte erhalten die bisherigen Standardwerte. Danach kennzeichnet der eigene Datenblock die migrierten Werte. Compilerprüfungen verhindern, dass zukünftige Erweiterungen diesen Speicherbereich überlappen.
+Im AVR-EEPROM bleiben TonUINO-Einstellungen bei Adresse 100 und zusätzliche Shortcuts ab 156. Die fünf LED-Datenbytes liegen separat bei 148 bis 152; 153 bis 155 enthalten Kennung `PB` und Formatversion 1. Der erste Start übernimmt plausible Werte des bisherigen AVR-Forks ab Adresse 140. Gelöschte oder ungültige Werte erhalten die bisherigen Standardwerte. Danach kennzeichnet der eigene Datenblock die migrierten Werte. Compilerprüfungen verhindern, dass zukünftige Erweiterungen diesen Speicherbereich überlappen.
 
 ## Prüfung und weitere Verbesserungen
 
@@ -52,8 +52,4 @@ Die vorhandenen Hosttests sind um EEPROM-Migration, beschädigte Einstellungen, 
 
 Die lokale Prüfung ist in [pixel-box-validation.md](pixel-box-validation.md) dokumentiert. Die sichtbaren Effekte und die Ansagen müssen noch auf der realen Box geprüft werden; ein Build ersetzt diesen Hardwaretest nicht.
 
-Weitere sinnvolle Verbesserungen außerhalb dieses Updates:
-
-- Start- und Abschaltanimation ohne `delay()` ausführen. Dadurch können RFID und Audiosteuerung während dieser Animationen weiterlaufen.
-- Nur geänderte EEPROM-Bytes schreiben. Das reduziert Schreibzugriffe beim Speichern der Einstellungen.
-- Menüoptionen und Soundnummern künftig in einer gemeinsamen Tabelle verwalten. Das verringert den Aufwand bei weiteren Upstream-Erweiterungen.
+Die zehn Punkte aus der anschließenden Codeprüfung sowie die Start- und Abschaltanimation ohne Animations-`delay()` sind umgesetzt. Verhalten, Gründe und Speichervergleich stehen in [pixel-box-optimizations.md](pixel-box-optimizations.md). Beim Abschalten endet erst das letzte LED-Bild, bevor die bestehende Stromabschaltung beginnt.

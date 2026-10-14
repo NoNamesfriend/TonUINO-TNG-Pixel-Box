@@ -4,9 +4,9 @@
 // Cover the fork menu independently of the official 14 options.
 class pixel_admin_fixture : public tonuino_fixture {
 public:
-  void goto_animation_setting() {
+  void goto_pixel_setting(uint8_t option) {
     goto_admin();
-    for (uint8_t i = 0; i < 17; ++i) {
+    for (uint8_t i = 0; i < option; ++i) {
       button_for_command(command::next, state_for_command::admin);
       execute_cycle_for_ms(time_check_play);
       getMp3().end_track();
@@ -14,10 +14,13 @@ public:
     }
     button_for_command(command::select, state_for_command::admin);
     ASSERT_TRUE(SM_tonuino::is_in_state<Admin_SimpleSetting>());
-    ASSERT_EQ(Admin_SimpleSetting::type, Admin_SimpleSetting::neoPixelPlayAnimation);
     execute_cycle_for_ms(time_check_play);
     getMp3().end_track();
     execute_cycle();
+  }
+  void goto_animation_setting() {
+    goto_pixel_setting(17);
+    ASSERT_EQ(Admin_SimpleSetting::type, Admin_SimpleSetting::neoPixelPlayAnimation);
   }
 };
 
@@ -47,7 +50,8 @@ TEST_F(pixel_admin_fixture, animation_preview_switches_without_saving_and_cancel
   EXPECT_EQ(memcmp(savedEeprom, EEPROM.eeprom_mem, sizeof(savedEeprom)), 0);
 
   pixels.setState(Neo_pixels::State::play);
-  execute_cycle_for_ms(250);
+  pixels.loop();
+  for (int i = 0; i < 3; ++i) { current_time += 100; pixels.loop(); }
   // Persisted animation 0 uses the configured red hue; preview 1 used several hues.
   for (const auto color : Adafruit_NeoPixel::frame)
     EXPECT_EQ(color & 0x00ffff, 0u);
@@ -119,5 +123,36 @@ TEST_F(pixel_admin_fixture, night_light_modifier_uses_option_12_and_track_982) {
   EXPECT_EQ(SM_tonuino::folder.folder, 0);
   EXPECT_EQ(SM_tonuino::folder.mode, pmode_t::night_light);
   EXPECT_EQ(static_cast<uint8_t>(pmode_t::pause_aft_tr), 9);
+}
+
+TEST_F(pixel_admin_fixture, hue_preview_and_save_reach_options_33_and_65) {
+  goto_pixel_setting(15);
+  ASSERT_TRUE(SM_tonuino::is_in_state<Admin_SimpleSetting>());
+  for (uint8_t option = 2; option <= 65; ++option) {
+    button_for_command(command::next, state_for_command::admin);
+    getMp3().end_track();
+    execute_cycle();
+    if (option == 33 || option == 65) {
+      const auto actual = Adafruit_NeoPixel::frame;
+      Adafruit_NeoPixel expected(1, 18, NEO_GRB + NEO_KHZ800);
+      expected.setBrightness(NeoPixelBrightness);
+      expected.setPixelColor(0, expected.ColorHSV((static_cast<uint32_t>(option) - 1) * 1000, 255, 255));
+      expected.show();
+      for (auto color : actual) EXPECT_EQ(color, Adafruit_NeoPixel::frame[0]);
+      EXPECT_EQ(getSettings().neoPixelHue, 0);
+    }
+  }
+  button_for_command(command::select, state_for_command::admin);
+  EXPECT_EQ(getSettings().neoPixelHue, 64000);
+  getSettings().neoPixelHue = 0;
+  getSettings().loadSettingsFromFlash();
+  EXPECT_EQ(getSettings().neoPixelHue, 64000);
+}
+
+TEST_F(pixel_admin_fixture, unchanged_hue_preview_does_not_send_frames_every_menu_cycle) {
+  goto_pixel_setting(15);
+  const auto shows = Adafruit_NeoPixel::showCount;
+  execute_cycle_for_ms(1000);
+  EXPECT_EQ(Adafruit_NeoPixel::showCount, shows);
 }
 #endif

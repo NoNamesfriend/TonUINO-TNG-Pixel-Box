@@ -33,6 +33,11 @@ struct Settings {
   folderSettings getShortCut(uint8_t shortCut);
   void           setShortCut(uint8_t shortCut, const folderSettings& value);
 
+  static void EEPROM_update(int address, uint8_t value) {
+    if (EEPROM.read(address) != value)
+      EEPROM.write(address, value);
+  }
+
   // emulates EEPROM.put() .get() and .update() on LGT8F328P platform
   // partially sourced from: https://playground.arduino.cc/Code/EEPROMWriteAnything/
   template <class T>
@@ -41,7 +46,7 @@ struct Settings {
     unsigned int i;
 
     for (i = 0; i < sizeof(value); i++)
-      EEPROM.write(ee++, *p++);
+      EEPROM_update(ee++, *p++);
     commit();
     return i;
   }

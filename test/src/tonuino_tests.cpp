@@ -204,6 +204,9 @@ TEST_F(tonuino_test_fixture, shutdown_in_idle) {
 
   // button shutdown
   button_for_command(command::shutdown, state_for_command::idle_pause);
+#ifdef NeoPixels
+  execute_cycle_for_ms(700); // Async shutdown must finish its last LED frame first.
+#endif
 
 #if defined ALLinONE || defined ALLinONE_Plus
   EXPECT_EQ(pin_value[ampEnablePin], HIGH);
@@ -235,6 +238,9 @@ TEST_F(tonuino_test_fixture, shutdown_in_pause) {
 
   // button shutdown
   button_for_command(command::shutdown, state_for_command::idle_pause);
+#ifdef NeoPixels
+  execute_cycle_for_ms(700); // Async shutdown must finish its last LED frame first.
+#endif
 
 #if defined ALLinONE || defined ALLinONE_Plus
   EXPECT_EQ(pin_value[ampEnablePin], HIGH);

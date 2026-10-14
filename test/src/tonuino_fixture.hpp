@@ -20,6 +20,10 @@ public:
     pin_value[button3x3Pin] = Buttons3x3::maxLevel;
 #endif
     tonuino.setup();
+#ifdef BAT_VOLTAGE_MEASUREMENT
+    // Mock A6 shares number 20 with the AiO+ USB pin; setup resets it.
+    pin_value[voltageMeasurementPin] = 600;
+#endif
   }
 
   struct Initializer {

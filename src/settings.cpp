@@ -3,14 +3,15 @@
 #include "constants.hpp"
 #include "logger.hpp"
 #include <stddef.h>
+#include "pixel_box.hpp"
 
 namespace {
 
 //  ############### EEPROM ################################
 //  Address       Usage
 //    0- 99       Folder Settings (Hoerbuch Fortschritt)
-//  100-140       AdminSettings (41 Byte)
-//  141-147       reserved (ESP32/padding may use part of this)
+//  100-139       AVR AdminSettings (40 Byte)
+//  140-147       reserved (ESP32/padding may use part of this)
 //  148-155       Pixel Box settings (5 data bytes, PB signature, version)
 //  156-255       extra Shortcuts (100 Byte, max. 25 Shortcuts)
 
@@ -27,6 +28,7 @@ constexpr uint16_t endAddress                 = 256;
 
 #ifdef NeoPixels
 constexpr uint16_t startAddressPixelSettings = 148;
+constexpr uint16_t startAddressLegacyPixelSettings = 140; // Original AVR fork, fixed five-byte layout.
 constexpr uint16_t storedSettingsSize = offsetof(Settings, neoPixelHue);
 static_assert(startAddressAdminSettings + storedSettingsSize <= startAddressPixelSettings,
               "Upstream settings overlap Pixel Box EEPROM storage");
@@ -48,7 +50,8 @@ void resetPixelSettings(Settings& settings) {
 }
 
 bool validPixelSettings(const Settings& settings) {
-  return settings.neoPixelHue <= 64000 && settings.neoPixelPlayAnimation < 2;
+  return settings.neoPixelHue <= 64000
+      && settings.neoPixelPlayAnimation < static_cast<uint8_t>(PixelPlayAnimation::NUMBER_OF_ANIMATIONS);
 }
 #else
 constexpr uint16_t storedSettingsSize = sizeof(Settings);
@@ -77,7 +80,7 @@ void Settings::commit() {
 void Settings::clearEEPROM() {
   LOG(settings_log, s_info, F("clEEPROM"));
   for (uint16_t i = startAddressFolderSettings; i < endAddress; ++i) {
-    EEPROM_put(i, '\0');
+    EEPROM_update(i, 0);
   }
   commit();
 }
@@ -87,16 +90,16 @@ void Settings::writeSettingsToFlash() {
   LOG(settings_log, s_debug, F("writeSettingsToFlash"));
   const byte* data = reinterpret_cast<const byte*>(this);
   for (uint16_t i = 0; i < storedSettingsSize; ++i)
-    EEPROM.write(startAddressAdminSettings + i, data[i]);
+    EEPROM_update(startAddressAdminSettings + i, data[i]);
 #ifdef NeoPixels
-  EEPROM.write(startAddressPixelSettings, neoPixelHue & 0xff);
-  EEPROM.write(startAddressPixelSettings + 1, neoPixelHue >> 8);
-  EEPROM.write(startAddressPixelSettings + 2, neoPixelBaseValue);
-  EEPROM.write(startAddressPixelSettings + 3, neoPixelPlayAnimation);
-  EEPROM.write(startAddressPixelSettings + 4, neoPixelNightLightValue);
-  EEPROM.write(startAddressPixelSettings + 5, 'P');
-  EEPROM.write(startAddressPixelSettings + 6, 'B');
-  EEPROM.write(startAddressPixelSettings + 7, 1);
+  EEPROM_update(startAddressPixelSettings, neoPixelHue & 0xff);
+  EEPROM_update(startAddressPixelSettings + 1, neoPixelHue >> 8);
+  EEPROM_update(startAddressPixelSettings + 2, neoPixelBaseValue);
+  EEPROM_update(startAddressPixelSettings + 3, neoPixelPlayAnimation);
+  EEPROM_update(startAddressPixelSettings + 4, neoPixelNightLightValue);
+  EEPROM_update(startAddressPixelSettings + 5, 'P');
+  EEPROM_update(startAddressPixelSettings + 6, 'B');
+  EEPROM_update(startAddressPixelSettings + 7, 1);
 #endif
   commit();
 }
@@ -149,19 +152,14 @@ void Settings::loadSettingsFromFlash() {
       readPixelSettings(*this, startAddressPixelSettings);
     }
     else {
-      resetPixelSettings(*this);
 #ifndef TonUINO_Esp32
-      // The old AVR fork appended five bytes at 141, without a signature.
-      // Only import plausible values; erased or upstream-only EEPROM uses defaults.
-      Settings legacy{};
-      readPixelSettings(legacy, startAddressAdminSettings + storedSettingsSize);
-      if (validPixelSettings(legacy) && legacy.neoPixelBaseValue >= 15
-          && legacy.neoPixelNightLightValue >= 15) {
-        neoPixelHue = legacy.neoPixelHue;
-        neoPixelBaseValue = legacy.neoPixelBaseValue;
-        neoPixelPlayAnimation = legacy.neoPixelPlayAnimation;
-        neoPixelNightLightValue = legacy.neoPixelNightLightValue;
-      }
+      // Fixed original AVR layout: read only the five LED fields.
+      // Erased or upstream-only EEPROM does not have plausible legacy values.
+      readPixelSettings(*this, startAddressLegacyPixelSettings);
+      if (!validPixelSettings(*this) || neoPixelBaseValue < 15 || neoPixelNightLightValue < 15)
+        resetPixelSettings(*this);
+#else
+      resetPixelSettings(*this);
 #endif
     }
     const bool invalid = !validPixelSettings(*this);

@@ -730,9 +730,6 @@ void Idle::entry() {
   LOG(state_log, s_info, str_enter(), str_Idle());
   state_str = str_Idle();
   tonuino.setStandbyTimer();
-  #if defined NeoPixels
-  neoPixels.setState(Neo_pixels::State::idle);
-  #endif
 }
 
 void Idle::react(command_e const &cmd_e) {
@@ -831,9 +828,6 @@ void Play::entry() {
   state_str = str_Play();
   tonuino.disableStandbyTimer();
   mp3.start();
-  #if defined NeoPixels
-  neoPixels.setState(Neo_pixels::State::play);
-  #endif
 }
 
 void Play::react(command_e const &cmd_e) {
@@ -860,9 +854,6 @@ void Play::react(command_e const &cmd_e) {
     LOG(state_log, s_debug, F("Pause Taste"));
     LOG(state_log, s_debug, str_Play(), str_to(), str_Pause());
     transit<Pause>();
-    #if defined NeoPixels
-    neoPixels.setState(Neo_pixels::State::pause);
-    #endif
     return;
   case command::track:
 #ifdef BT_MODULE
@@ -874,10 +865,6 @@ void Play::react(command_e const &cmd_e) {
     break;
   case command::volume_up:
     mp3.increaseVolume();
-    #if defined NeoPixels
-    neoPixels.setState(Neo_pixels::State::volume);
-    neoPixels.resetUpdate();
-    #endif
     break;
   case command::next:
     tonuino.nextTrack();
@@ -893,10 +880,6 @@ void Play::react(command_e const &cmd_e) {
     break;
   case command::volume_down:
     mp3.decreaseVolume();
-    #if defined NeoPixels
-    neoPixels.setState(Neo_pixels::State::volume);
-    neoPixels.resetUpdate();
-    #endif
     break;
   case command::previous:
     tonuino.previousTrack();
@@ -962,9 +945,6 @@ void Pause::entry() {
   state_str = str_Pause();
   tonuino.setStandbyTimer();
   mp3.pause();
-  #if defined NeoPixels
-  neoPixels.setState(Neo_pixels::State::pause);
-  #endif
 }
 
 void Pause::react(command_e const &cmd_e) {
@@ -1792,10 +1772,6 @@ void Admin_Entry::entry() {
     mp3.stop();
   }
 
-#if defined NeoPixels
-  neoPixels.setState(Neo_pixels::State::admin);
-#endif
-
   VoiceMenu::entry(startMessage == mp3Tracks::t_919_continue_admin);
 
   currentValue      = lastCurrentValue;
@@ -2022,7 +1998,7 @@ void Admin_SimpleSetting::entry() {
 void Admin_SimpleSetting::react(command_e const &cmd_e) {
   #ifdef NeoPixels
   if (type == neoPixelHue)
-    neoPixels.displayAll(currentValue * 1000 - 1000, 255);
+    neoPixels.displayAll(pixelHueFromOption(currentValue), 255);
   else if (type == neoPixelBaseValue)
     neoPixels.displayAll(settings.neoPixelHue, currentValue * 16 - 1);
   else if (type == neoPixelNightLightValue)
@@ -2052,14 +2028,14 @@ void Admin_SimpleSetting::react(command_e const &cmd_e) {
     case eq        : settings.eq = currentValue;
                      mp3.setEq(static_cast<DfMp3_Eq>(settings.eq - 1))          ; break;
     #ifdef NeoPixels
-    case neoPixelHue: settings.neoPixelHue = currentValue * 1000 - 1000;
-                      neoPixels.updateFromSettings()                            ; break;
+    case neoPixelHue: settings.neoPixelHue = pixelHueFromOption(currentValue);
+                      neoPixels.updateFromSettings(settings); break;
     case neoPixelBaseValue: settings.neoPixelBaseValue = currentValue * 16 - 1;
-                      neoPixels.updateFromSettings()                            ; break;
+                      neoPixels.updateFromSettings(settings); break;
     case neoPixelPlayAnimation: settings.neoPixelPlayAnimation = currentValue - 1;
-                      neoPixels.updateFromSettings()                            ; break;
+                      neoPixels.updateFromSettings(settings); break;
     case neoPixelNightLightValue: settings.neoPixelNightLightValue = currentValue * 16 - 1;
-                      neoPixels.updateFromSettings()                            ; break;
+                      neoPixels.updateFromSettings(settings); break;
     #endif
     }
     saveAndTransit();
