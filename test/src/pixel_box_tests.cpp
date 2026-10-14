@@ -318,20 +318,23 @@ TEST_F(pixel_box_fixture, track_feedback_keeps_50_ms_tempo_and_mirrors_the_trail
 
 TEST_F(pixel_box_fixture, pulse_preparation_finishes_at_low_and_full_base_brightness) {
   auto& pixels = tonuino.getNeoPixels();
-  for (uint8_t base : {0, 1, 15, 95, 255}) {
+  for (uint8_t base : {0, 1, 15, 95, 191, 223, 239, 255}) {
     getSettings().neoPixelBaseValue = base;
     pixels.updateFromSettings(getSettings());
     pixels.setState(Neo_pixels::State::idle);
     pixels.loop();
     pixels.setState(Neo_pixels::State::play);
     pixels.loop();
-    for (int i = 0; i < 20; ++i) { current_time += 100; pixels.loop(); }
-    if (base != 255) {
-      bool hasDot = false;
-      for (unsigned int i = 1; i < NeoPixelCount; ++i)
-        hasDot |= Adafruit_NeoPixel::frame[i] != Adafruit_NeoPixel::frame[0];
-      EXPECT_TRUE(hasDot) << "base=" << static_cast<int>(base);
+    bool hasDot = false;
+    // Check the pulse over time; a valid pulse may be at its uniform low phase
+    // at the exact final sample, especially with a high background value.
+    for (int i = 0; i < 20; ++i) {
+      current_time += 100;
+      pixels.loop();
+      for (unsigned int j = 1; j < NeoPixelCount; ++j)
+        hasDot |= Adafruit_NeoPixel::frame[j] != Adafruit_NeoPixel::frame[0];
     }
+    EXPECT_TRUE(hasDot) << "base=" << static_cast<int>(base);
     pixels.setState(Neo_pixels::State::pause);
     pixels.loop();
     for (int i = 0; i < 30; ++i) { current_time += 100; pixels.loop(); }

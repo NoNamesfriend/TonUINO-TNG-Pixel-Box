@@ -73,6 +73,30 @@ TEST_F(pixel_admin_fixture, animation_preview_is_saved_only_on_confirmation) {
   EXPECT_EQ(getSettings().neoPixelPlayAnimation, 1);
 }
 
+TEST_F(pixel_admin_fixture, first_play_preview_pulses_at_maximum_base_brightness_without_changing_settings) {
+  getSettings().neoPixelBaseValue = 255; // Admin brightness option 16.
+  getSettings().neoPixelPlayAnimation = 0;
+  getSettings().writeSettingsToFlash();
+  tonuino.getNeoPixels().updateFromSettings(getSettings()); // As after loading these values on reboot.
+  uint8_t before[EEPROM.max_len];
+  memcpy(before, EEPROM.eeprom_mem, sizeof(before));
+  goto_animation_setting();
+  execute_cycle_for_ms(4000); // Exclude the initial colour preparation.
+  const auto first = Adafruit_NeoPixel::frame;
+  bool moves = false;
+  bool hasPulse = false;
+  for (int i = 0; i < 120; ++i) {
+    execute_cycle_for_ms(100);
+    moves |= Adafruit_NeoPixel::frame != first;
+    for (unsigned int j = 1; j < NeoPixelCount; ++j)
+      hasPulse |= Adafruit_NeoPixel::frame[j] != Adafruit_NeoPixel::frame[0];
+  }
+  EXPECT_TRUE(moves);
+  EXPECT_TRUE(hasPulse);
+  EXPECT_EQ(getSettings().neoPixelBaseValue, 255);
+  EXPECT_EQ(memcmp(before, EEPROM.eeprom_mem, sizeof(before)), 0);
+}
+
 TEST_F(pixel_admin_fixture, pixel_options_keep_audio_numbers_and_setting_types) {
   const Admin_SimpleSetting::Type types[] = {
     Admin_SimpleSetting::neoPixelHue, Admin_SimpleSetting::neoPixelBaseValue,

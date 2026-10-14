@@ -374,6 +374,9 @@ void Neo_pixels::animVolume(uint8_t currentVolume, uint8_t minVolume, uint8_t ma
 
 void Neo_pixels::dotForwardPulse()
 {
+  // Keep at least 64 levels of headroom for the bright dots. A background
+  // of 255 would make every pulse frame identical, also in the live preview.
+  const uint8_t pulseBase = min(baseValue, static_cast<uint8_t>(191));
   if (renderedState != state)
   {
     isPreparing = true;
@@ -390,20 +393,20 @@ void Neo_pixels::dotForwardPulse()
   animStepStart = millis();
 
   if (isPreparing) {
-    isPreparing = fadeTo(baseValue);
+    isPreparing = fadeTo(pulseBase);
     if (isPreparing)
       return;
   }
 
   uint8_t dimUpValue;
-  if (baseValue + (16 * miniStep) > 255)
+  if (pulseBase + (16 * miniStep) > 255)
     dimUpValue = 255;
   else
-    dimUpValue = baseValue + (16 * miniStep);
+    dimUpValue = pulseBase + (16 * miniStep);
 
   uint8_t dimDownValue;
-  if (255 - (16 * (miniStep - 15)) < baseValue)
-    dimDownValue = baseValue;
+  if (255 - (16 * (miniStep - 15)) < pulseBase)
+    dimDownValue = pulseBase;
   else
     dimDownValue = 255 - (16 * (miniStep - 15));
 
@@ -417,7 +420,7 @@ void Neo_pixels::dotForwardPulse()
         pixels.setPixelColor(i, pixels.ColorHSV(hue, 255, dimDownValue));
     }
     else
-      pixels.setPixelColor(i, pixels.ColorHSV(hue, 255, baseValue));
+      pixels.setPixelColor(i, pixels.ColorHSV(hue, 255, pulseBase));
   }
 
   pixels.show();
