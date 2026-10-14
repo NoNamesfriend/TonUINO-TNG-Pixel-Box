@@ -54,7 +54,7 @@ void Neo_pixels::setTimedNightLight(uint8_t minutes)
 void Neo_pixels::call_on_feedback(Feedback next)
 {
   if (isShuttingDown() || next == Feedback::none) return;
-  if (feedback == next) return;
+  if (feedback == next && next != Feedback::color_selected) return;
   if (isStateBlocking && next == Feedback::recognized) return;
   if (isStateBlocking) {
     isStateBlocking = false;
@@ -139,6 +139,10 @@ void Neo_pixels::animColorBlend()
 
 void Neo_pixels::animFeedback(Feedback event, uint32_t elapsed)
 {
+  if (event == Feedback::color_selected) {
+    displayAll(hue, nightLightEnabled || lightMode == LightMode::quiet ? 64 : 255);
+    return;
+  }
   if (static_cast<uint32_t>(millis() - animStepStart) < cycleTime) return;
   animStepStart = millis();
   staticFrame = false;

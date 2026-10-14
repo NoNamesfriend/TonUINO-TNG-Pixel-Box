@@ -703,6 +703,19 @@ void Tonuino::switchEndlessOnOff() {
 bool Tonuino::specialCard(const folderSettings &nfcTag) {
   LOG(card_log, s_debug, F("special card, mode = "), static_cast<uint8_t>(nfcTag.mode));
 #ifdef NeoPixels
+  if (nfcTag.folder == 0 && (nfcTag.mode == pmode_t::pixel_cycle_color || nfcTag.mode == pmode_t::pixel_fixed_color)) {
+    if (nfcTag.mode == pmode_t::pixel_fixed_color && (nfcTag.special < 1 || nfcTag.special > 65)) {
+      neo_pixels.call_on_feedback(Neo_pixels::Feedback::read_error);
+      return true; // Consume malformed colour cards without changing playback or settings.
+    }
+    settings.neoPixelHue = nfcTag.mode == pmode_t::pixel_cycle_color ? pixelNextHue(settings.neoPixelHue)
+                                                                  : pixelHueFromOption(nfcTag.special);
+    settings.writeSettingsToFlash();
+    neo_pixels.updateFromSettings(settings);
+    mp3.playAdvertisement(advertTracks::t_354_color_selected, false);
+    neo_pixels.call_on_feedback(Neo_pixels::Feedback::color_selected);
+    return true;
+  }
   if (nfcTag.folder == 0 && (nfcTag.mode == pmode_t::pixel_quiet || nfcTag.mode == pmode_t::pixel_cycle_animation
                             || nfcTag.mode == pmode_t::timed_night_light)) {
     // Lighting cards coexist with playback modifiers such as the sleep timer.

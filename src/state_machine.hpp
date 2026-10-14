@@ -392,6 +392,9 @@ private:
     get_sleeptime_timer,
     get_sleeptime_mode,
     get_play_time,
+#ifdef NeoPixels
+    get_color,
+#endif
     start_writeCard,
     run_writeCard,
   };

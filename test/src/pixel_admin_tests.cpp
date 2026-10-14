@@ -258,4 +258,53 @@ TEST_F(pixel_admin_fixture, all_new_effects_are_previewed_and_saved_only_after_c
     goto_idle();
   }
 }
+TEST_F(pixel_new_admin_fixture, color_cycle_card_uses_option_16_prompt_1104_and_mode_203) {
+  goto_light_card_option(16);
+  EXPECT_EQ(SM_tonuino::folder.mode, pmode_t::pixel_cycle_color);
+  EXPECT_EQ(static_cast<uint8_t>(SM_tonuino::folder.mode), 203);
+  write_and_decode({0, pmode_t::pixel_cycle_color, 0, 0});
+}
+
+TEST_F(pixel_new_admin_fixture, fixed_color_card_previews_and_writes_selection_65_without_saving_it_as_base_color) {
+  getSettings().neoPixelHue = 63000;
+  getSettings().writeSettingsToFlash();
+  uint8_t before[EEPROM.max_len];
+  memcpy(before, EEPROM.eeprom_mem, sizeof(before));
+  goto_light_card_option(17);
+  EXPECT_EQ(SM_tonuino::folder.mode, pmode_t::pixel_fixed_color);
+  EXPECT_EQ(static_cast<uint8_t>(SM_tonuino::folder.mode), 204);
+  execute_cycle_for_ms(time_check_play);
+  EXPECT_EQ(getMp3().df_mp3_track, 1106);
+  getMp3().end_track(); execute_cycle();
+  button_for_command(command::next, state_for_command::admin);
+  execute_cycle_for_ms(time_check_play);
+  EXPECT_EQ(getMp3().df_mp3_track, 65);
+  const auto preview = Adafruit_NeoPixel::frame;
+  for (auto color : preview) EXPECT_EQ(color, preview[0]);
+  EXPECT_EQ(getSettings().neoPixelHue, 63000);
+  EXPECT_EQ(memcmp(before, EEPROM.eeprom_mem, sizeof(before)), 0);
+  getMp3().end_track(); execute_cycle();
+  button_for_command(command::select, state_for_command::admin);
+  EXPECT_EQ(SM_tonuino::folder.special, 65);
+  write_and_decode({0, pmode_t::pixel_fixed_color, 65, 0});
+  EXPECT_EQ(getSettings().neoPixelHue, 63000);
+  EXPECT_EQ(memcmp(before, EEPROM.eeprom_mem, sizeof(before)), 0);
+}
+
+TEST_F(pixel_new_admin_fixture, aborting_fixed_color_card_discards_the_preview_and_creates_no_card) {
+  getSettings().neoPixelHue = 32000;
+  getSettings().writeSettingsToFlash();
+  uint8_t before[EEPROM.max_len];
+  memcpy(before, EEPROM.eeprom_mem, sizeof(before));
+  goto_light_card_option(17);
+  execute_cycle_for_ms(time_check_play);
+  getMp3().end_track(); execute_cycle();
+  button_for_command(command::next, state_for_command::admin);
+  getMp3().end_track(); execute_cycle();
+  button_for_command(command::adm_end, state_for_command::admin);
+  EXPECT_EQ(getSettings().neoPixelHue, 32000);
+  EXPECT_EQ(memcmp(before, EEPROM.eeprom_mem, sizeof(before)), 0);
+  EXPECT_FALSE(SM_writeCard::is_in_state<WriteCard>());
+}
+
 #endif

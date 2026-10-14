@@ -37,7 +37,7 @@ void Neo_pixels::loop(uint8_t volume, uint8_t minVolume, uint8_t maxVolume)
 {
   if (!isShuttingDown() && feedback != Feedback::none) {
     const uint32_t elapsed = static_cast<uint32_t>(millis()) - feedbackStarted;
-    const uint16_t duration = feedback == Feedback::recognized ? 900 : feedback == Feedback::locked ? 550
+    const uint16_t duration = feedback == Feedback::color_selected ? 1200 : feedback == Feedback::recognized ? 900 : feedback == Feedback::locked ? 550
                             : feedback == Feedback::game_good || feedback == Feedback::game_bad ? 1800 : 1600;
     if (elapsed < duration) {
       animFeedback(feedback, elapsed);

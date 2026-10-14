@@ -180,6 +180,9 @@ enum class mp3Tracks: uint16_t {
   t_1101_modifier_next_animation = 1101,
   t_1102_modifier_timed_night = 1102,
   t_1103_night_duration_intro = 1103,
+  t_1104_modifier_next_color = 1104,
+  t_1105_modifier_fixed_color = 1105,
+  t_1106_card_color_intro = 1106,
 #endif
   t_985_admin_lock_intro       = 985,
   t_986_admin_lock_disabled    = 986,
@@ -217,6 +220,7 @@ enum class advertTracks: uint16_t {
   t_351_quiet_light            = 351,
   t_352_next_animation           = 352,
   t_353_timed_night_light      = 353,
+  t_354_color_selected        = 354,
 #endif
   t_323_standby_timer_off      = 323,
   t_324_standby_timer_on       = 324,

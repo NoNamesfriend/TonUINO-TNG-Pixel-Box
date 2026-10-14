@@ -19,7 +19,7 @@ public:
   };
   using PlayAnimation = PixelPlayAnimation;
   enum class LightMode : uint8_t { normal, quiet };
-  enum class Feedback : uint8_t { none, recognized, empty_card, read_error, locked, battery, game_good, game_bad };
+  enum class Feedback : uint8_t { none, recognized, empty_card, read_error, locked, battery, game_good, game_bad, color_selected };
   enum class GameSelection : uint8_t { none, first, second, quiz };
 
   void init(const Settings& settings);

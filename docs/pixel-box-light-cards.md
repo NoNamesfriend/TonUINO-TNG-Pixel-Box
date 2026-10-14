@@ -26,6 +26,8 @@ Wähle im Adminmenü Option 6, „Modifikationskarte“, und anschließend die g
 | 13 | Ruhelicht | Schwaches, warmes Dauerlicht ohne Bewegung; Wiedergabe und Audio-Modifikationen laufen weiter |
 | 14 | Wiedergabeanimation wechseln | Jedes erneute Auflegen wählt und speichert die nächste der fünf Play-Animationen |
 | 15 | Zeitbegrenztes Nachtlicht | Standardmäßig 30 Minuten; über Hoch/Runter sind 5, 15, 30 oder 60 Minuten wählbar, Pausetaste bestätigt |
+| 16 | Grundfarben durchschalten | Jedes erneute Auflegen setzt die nächste von acht Farben |
+| 17 | Feste Grundfarbe | Beim Erstellen wählst du mit Vorschau eine von 65 Farbstufen; beim Auflegen wird diese Farbe gesetzt |
 
 Lege eine aktive Ruhelichtkarte erneut auf, um zur gespeicherten normalen Wiedergabeanimation zurückzukehren.
 
@@ -41,11 +43,24 @@ Ein aktives Nachtlicht verhindert eine vorzeitige Standby-Abschaltung. Sobald es
 
 Ruhelicht und das aktive Nachtlicht gelten nur für die aktuelle Sitzung. Die Nachtlichtdauer steht auf der Karte. Die Animationsauswahl bleibt im EEPROM gespeichert.
 
+## Grundfarbe mit Karten setzen
+
+Die Durchschaltkarte folgt der Reihenfolge Rot → Orange → Gelb → Grün → Türkis → Blau → Violett → Pink → Rot. Sie geht von der derzeit gespeicherten Grundfarbe aus. Liegt eine frei gewählte Farbe zwischen zwei Palettenfarben, folgt die nächste Farbe im Farbkreis. Eine liegenbleibende Karte schaltet nur einmal; nimm sie für den nächsten Wechsel ab und lege sie erneut auf.
+
+Für eine feste Farbkarte wählst du innerhalb „Modifikationskarte“ Option 17. Die aktuell gespeicherte Grundfarbe ist vorausgewählt. Hoch/Runter wechseln durch dieselben 65 Farbstufen wie bei der bisherigen Farbeinstellung; der Streifen zeigt die Auswahl direkt. Die Pausetaste bestätigt die Farbe für die Karte, anschließend wird die Karte geschrieben. Beim Erstellen oder Abbrechen bleibt die Grundfarbe der Box erhalten. Erst das Auflegen der fertigen Karte setzt und speichert die Farbe.
+
+Beide Varianten speichern im bestehenden Farbwert, der auch im Adminmenü unter Option 15 erscheint. Die Farbe bleibt nach einem Neustart erhalten. Wiederholtes Auflegen derselben festen Farbkarte setzt dieselbe Farbe; unveränderte EEPROM-Bytes werden nicht neu geschrieben. Animation, Helligkeit, Musik und aktive Audio-Modifikationen bleiben erhalten. Ruhelicht und Nachtlicht bleiben ebenfalls aktiv, ihre Laufzeit wird nicht neu gestartet.
+
+Nach einer gültigen Farbkarte leuchten alle LEDs für 1,2 Sekunden in der gewählten Farbe. Die Vorschau wird bei Ruhelicht oder Nachtlicht gedämpft. Danach kehrt die vorherige Anzeige zurück. Eine weitere Farbkarte beginnt eine neue Vorschau; Abschalten hat Vorrang.
+
+Die Grundfarbe wirkt auf Idle, Start, Pause, Vor/Zurück, Puls und Leuchtpunkt mit Schweif sowie den Hintergrund der Kartenrückmeldung. Sie ist die Ausgangsfarbe der weichen Farbüberblendung. Die grüne Bewegung bei „Karte erkannt“ behält ihre Bedeutung. Farbzyklus und „Lebhaft“ wechseln ihre Farben selbst. Ruhelicht, Nachtlicht, Einschlaftimer, Lautstärkeanzeige, Adminanzeige, Spielhälften und Status-/Warnsignale verwenden weiterhin ihre eigenen Farben.
+
 ## Rückmeldungen auf dem Streifen
 
 | Ereignis | Ausgewählter Effekt |
 | --- | --- |
-| Karte erkannt | Grün breitet sich von der Mitte nach außen aus; Dauer 900 ms |
+| Karte erkannt | Grün breitet sich von der Mitte nach außen aus; Dauer 900 ms. Farbkarten verwenden stattdessen die Farbvorschau |
+| Grundfarbe per Karte gesetzt | Der ganze Streifen zeigt die ausgewählte Farbe für 1,2 Sekunden |
 | Leere Karte | Zwei cyanfarbene Hinweise auf dem ganzen Streifen; die Kartenprogrammierung beginnt wie bisher |
 | Lesefehler | Drei kurze bernsteinfarbene Hinweise auf dem ganzen Streifen |
 | Gesperrte Taste | Ein kurzer bernsteinfarbener Hinweis auf dem ganzen Streifen |
@@ -60,19 +75,23 @@ Im Ruhelicht bleiben kurze Rückmeldungen gedämpft. Die Einschlaftimer-Anzeige 
 
 ## Karten- und Soundformat
 
-Menüpositionen, gespeicherte Kartenmodi und Soundnummern sind getrennt. Die drei neuen Karten verwenden Ordner 0 und folgende Modusnummern dieses Forks:
+Menüpositionen, gespeicherte Kartenmodi und Soundnummern sind getrennt. Die fünf neuen Karten verwenden Ordner 0 und folgende Modusnummern dieses Forks:
 
 | Karte | RFID-Modus | `special` | Menüansage | Aktivierungsansage |
 | --- | ---: | --- | --- | --- |
 | Ruhelicht | 200 | 0 | `mp3/1100_modifier_quiet_light.mp3` | `advert/0351_quiet_light.mp3` |
 | Wiedergabeanimation wechseln | 201 | 0 | `mp3/1101_modifier_next_animation.mp3` | `advert/0352_next_animation.mp3` |
 | Zeitbegrenztes Nachtlicht | 202 | Minuten; 0 oder ungültige Werte verwenden 30 | `mp3/1102_modifier_timed_night.mp3` | `advert/0353_timed_night_light.mp3` |
+| Grundfarben durchschalten | 203 | 0 | `mp3/1104_modifier_next_color.mp3` | `advert/0354_color_selected.mp3` |
+| Feste Grundfarbe | 204 | Farbauswahl 1 bis 65 | `mp3/1105_modifier_fixed_color.mp3` | `advert/0354_color_selected.mp3` |
 
-`special2` bleibt 0. Die neue Einleitung für die Nachtlichtdauer ist `mp3/1103_night_duration_intro.mp3`. Die Zeitansagen 0961 bis 0964 werden wiederverwendet. Die Modusnummern 200 bis 202 sind Festlegungen dieses Forks; sie müssen bei späteren Upstream-Updates weiter abgeglichen werden. Musikordner mit diesen Licht-Modi werden als ungültige Karte zurückgewiesen.
+`special2` bleibt 0. Die neue Einleitung für die Nachtlichtdauer ist `mp3/1103_night_duration_intro.mp3`. Die Zeitansagen 0961 bis 0964 werden wiederverwendet. Die Modusnummern 200 bis 204 sind Festlegungen dieses Forks; sie müssen bei späteren Upstream-Updates weiter abgeglichen werden. Musikordner mit diesen Licht-Modi werden als ungültige Karte zurückgewiesen. Eine feste Farbkarte mit `special` außerhalb 1 bis 65 zeigt einen Lesefehler und ändert keine Einstellung.
+
+Für feste Farbkarten verwendet die Auswahl die neue Einleitung `mp3/1106_card_color_intro.mp3` und die vorhandenen Zahlenansagen 1 bis 65. Menüoption 16 verweist ausdrücklich auf 1104, damit sie nicht die Nachtlicht-Einleitung 1103 abspielt. Die Palette verwendet HSV-Farbwerte 0, 5.000, 11.000, 22.000, 32.000, 44.000, 50.000 und 58.000. Feste Farboptionen werden wie im bestehenden Adminmenü als `(Auswahl - 1) × 1.000` umgesetzt.
 
 Eine bereits als „Lebhaft“ programmierte Karte mit Modus 201 wechselt nach diesem Update die Play-Animation. Die Karte muss dafür nicht neu beschrieben werden. Aktualisiere die Systemordner auf der SD-Karte vollständig, damit die ersetzten Ansagen 1101 und 0352 passen.
 
-Das vollständige deutsche SD-Paket muss aktualisiert werden, damit die neuen Ansagen vorhanden sind. Erzeuge es mit `python tools/package_pixel_box.py`; der allgemeine Updateablauf steht in [pixel-box-update.md](pixel-box-update.md). Die sieben neuen deutschen Ansagen wurden lokal mit „Microsoft Katja“ erzeugt. `tools/generate_pixel_box_prompts.ps1` kann sie unter Windows mit dieser installierten Stimme und FFmpeg erneut erstellen.
+Das vollständige deutsche SD-Paket muss aktualisiert werden, damit die neuen Ansagen vorhanden sind. Erzeuge es mit `python tools/package_pixel_box.py`; der allgemeine Updateablauf steht in [pixel-box-update.md](pixel-box-update.md). Die elf zusätzlichen deutschen Ansagen wurden lokal mit „Microsoft Katja“ erzeugt. `tools/generate_pixel_box_prompts.ps1` kann sie unter Windows mit dieser installierten Stimme und FFmpeg erneut erstellen.
 
 ## Implementierung und Prüfung
 

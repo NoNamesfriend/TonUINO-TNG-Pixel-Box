@@ -874,4 +874,173 @@ TEST_F(pixel_box_fixture, quiz_does_not_hint_the_answer_and_result_feedback_matc
 }
 #endif
 
+TEST_F(pixel_box_fixture, color_cycle_uses_eight_colors_and_changes_only_the_saved_hue) {
+  goto_play({2, pmode_t::album, 0, 0});
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::sleep_timer, 30, 0}));
+  getSettings().neoPixelHue = 0;
+  getSettings().neoPixelPlayAnimation = 4;
+  getSettings().writeSettingsToFlash();
+  uint8_t before[EEPROM.max_len];
+  memcpy(before, EEPROM.eeprom_mem, sizeof(before));
+  const uint16_t palette[] = {5000, 11000, 22000, 32000, 44000, 50000, 58000, 0};
+  for (auto hue : palette) {
+    ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_cycle_color, 0, 0}));
+    EXPECT_EQ(getSettings().neoPixelHue, hue);
+    Settings loaded{};
+    loaded.loadSettingsFromFlash();
+    EXPECT_EQ(loaded.neoPixelHue, hue);
+    EXPECT_EQ(loaded.neoPixelPlayAnimation, 4);
+    EXPECT_EQ(getModifier().getActive(), pmode_t::sleep_timer);
+    EXPECT_TRUE(SM_tonuino::is_in_state<Play>());
+    before[148] = hue & 255;
+    before[149] = hue >> 8;
+    EXPECT_EQ(memcmp(before, EEPROM.eeprom_mem, sizeof(before)), 0);
+  }
+  getSettings().neoPixelHue = 45000;
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_cycle_color, 0, 0}));
+  EXPECT_EQ(getSettings().neoPixelHue, 50000);
+}
+
+TEST_F(pixel_box_fixture, fixed_color_is_idempotent_and_uses_all_65_existing_choices) {
+  getSettings().neoPixelPlayAnimation = 2;
+  getSettings().writeSettingsToFlash();
+  for (uint8_t option : {1, 33, 65}) {
+    ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_fixed_color, option, 0}));
+    EXPECT_EQ(getSettings().neoPixelHue, pixelHueFromOption(option));
+    Settings loaded{};
+    loaded.loadSettingsFromFlash();
+    EXPECT_EQ(loaded.neoPixelHue, pixelHueFromOption(option));
+    EXPECT_EQ(loaded.neoPixelPlayAnimation, 2);
+    EEPROM.writeCount = 0;
+    ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_fixed_color, option, 0}));
+    EXPECT_EQ(EEPROM.writeCount, 0u);
+  }
+}
+
+TEST_F(pixel_box_fixture, color_rfid_card_advances_once_and_shows_the_color_instead_of_green) {
+  goto_play({2, pmode_t::album, 0, 0});
+  getSettings().neoPixelHue = 0;
+  getSettings().writeSettingsToFlash();
+  card_out();
+  card_in({0, pmode_t::pixel_cycle_color, 0, 0});
+  EXPECT_EQ(getSettings().neoPixelHue, 5000);
+  EXPECT_EQ(getMp3().df_adv_track, 354);
+  for (auto color : Adafruit_NeoPixel::frame) EXPECT_EQ(color, Adafruit_NeoPixel::frame[0]);
+  EXPECT_GT(Adafruit_NeoPixel::frame[0] >> 16, (Adafruit_NeoPixel::frame[0] >> 8) & 255);
+  execute_cycle_for_ms(1500);
+  EXPECT_EQ(getSettings().neoPixelHue, 5000);
+  EXPECT_TRUE(SM_tonuino::is_in_state<Play>());
+  card_out();
+  card_in({0, pmode_t::pixel_cycle_color, 0, 0});
+  EXPECT_EQ(getSettings().neoPixelHue, 11000);
+  EXPECT_TRUE(SM_tonuino::is_in_state<Play>());
+}
+
+TEST_F(pixel_box_fixture, invalid_fixed_colors_and_nonzero_music_folders_do_not_change_settings) {
+  uint8_t before[EEPROM.max_len];
+  memcpy(before, EEPROM.eeprom_mem, sizeof(before));
+  const auto hue = getSettings().neoPixelHue;
+  for (uint8_t option : {0, 66, 255}) {
+    card_out();
+    card_in({0, pmode_t::pixel_fixed_color, option, 0});
+    EXPECT_EQ(getSettings().neoPixelHue, hue);
+    EXPECT_EQ(memcmp(before, EEPROM.eeprom_mem, sizeof(before)), 0);
+    EXPECT_TRUE(SM_tonuino::is_in_state<Idle>());
+    EXPECT_GT(Adafruit_NeoPixel::frame[0] >> 16, (Adafruit_NeoPixel::frame[0] >> 8) & 255);
+  }
+  for (auto mode : {pmode_t::pixel_fixed_color, pmode_t::pixel_cycle_color}) {
+    card_out();
+    card_in({2, mode, 45, 0});
+    EXPECT_EQ(getSettings().neoPixelHue, hue);
+    EXPECT_EQ(memcmp(before, EEPROM.eeprom_mem, sizeof(before)), 0);
+    EXPECT_TRUE(SM_tonuino::is_in_state<Idle>());
+  }
+}
+
+TEST_F(pixel_box_fixture, color_preview_is_dim_in_quiet_light_and_resumes_it_after_1200_ms) {
+  auto& pixels = tonuino.getNeoPixels();
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_quiet, 0, 0}));
+  pixels.loop();
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_fixed_color, 45, 0}));
+  pixels.loop();
+  const auto blue = Adafruit_NeoPixel::frame[0] & 255;
+  EXPECT_GT(blue, 0u);
+  EXPECT_LT(blue, 20u);
+  EXPECT_EQ(pixels.getLightMode(), Neo_pixels::LightMode::quiet);
+  const auto shows = Adafruit_NeoPixel::showCount;
+  current_time += 600;
+  pixels.loop();
+  EXPECT_EQ(Adafruit_NeoPixel::showCount, shows);
+  current_time += 601;
+  pixels.loop();
+  EXPECT_EQ(Adafruit_NeoPixel::frame[0], 0x020100u);
+  EXPECT_EQ(pixels.getLightMode(), Neo_pixels::LightMode::quiet);
+}
+
+TEST_F(pixel_box_fixture, color_cards_keep_unlimited_and_timed_night_lights_and_their_deadline) {
+  auto& pixels = tonuino.getNeoPixels();
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::night_light, 0, 0}));
+  const auto oldNight = Adafruit_NeoPixel::frame;
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_fixed_color, 45, 0}));
+  pixels.loop();
+  EXPECT_EQ(getModifier().getActive(), pmode_t::night_light);
+  EXPECT_TRUE(pixels.nightLightKeepsAwake());
+  current_time += 1201;
+  pixels.loop();
+  EXPECT_EQ(Adafruit_NeoPixel::frame, oldNight);
+  tonuino.resetActiveModifier();
+  pixels.setTimedNightLight(1);
+  const auto started = current_time;
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_cycle_color, 0, 0}));
+  pixels.loop();
+  EXPECT_TRUE(pixels.timedNightLightActive());
+  current_time = started + 60001;
+  pixels.loop();
+  EXPECT_FALSE(pixels.timedNightLightActive());
+  for (auto color : Adafruit_NeoPixel::frame) EXPECT_EQ(color, 0u);
+}
+
+TEST_F(pixel_box_fixture, every_new_color_card_restarts_its_preview_and_shutdown_overrides_it) {
+  auto& pixels = tonuino.getNeoPixels();
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_fixed_color, 1, 0}));
+  pixels.loop();
+  current_time += 900;
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_fixed_color, 45, 0}));
+  pixels.loop();
+  current_time += 900;
+  pixels.loop();
+  for (auto color : Adafruit_NeoPixel::frame) EXPECT_EQ(color, Adafruit_NeoPixel::frame[0]);
+  EXPECT_EQ(Adafruit_NeoPixel::frame[0] & 255, 20u);
+  pixels.shutdown();
+  EXPECT_TRUE(pixels.isShuttingDown());
+  EXPECT_EQ(Adafruit_NeoPixel::frame[5], 0u);
+  EXPECT_EQ(Adafruit_NeoPixel::frame[6], 0u);
+}
+
+TEST_F(pixel_box_fixture, base_color_reaches_card_background_track_and_pause_but_keeps_green_recognition) {
+  auto& pixels = tonuino.getNeoPixels();
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_fixed_color, 45, 0}));
+  current_time += 1201;
+  pixels.loop();
+  pixels.setState(Neo_pixels::State::new_card);
+  pixels.loop();
+  EXPECT_GT(Adafruit_NeoPixel::frame[0] & 255, Adafruit_NeoPixel::frame[0] >> 16);
+  EXPECT_GT((Adafruit_NeoPixel::frame[5] >> 8) & 255, Adafruit_NeoPixel::frame[5] & 255);
+  current_time += 901;
+  pixels.loop();
+  pixels.setState(Neo_pixels::State::next);
+  pixels.loop();
+  current_time += 50;
+  pixels.loop();
+  EXPECT_GT(Adafruit_NeoPixel::frame[0] & 255, Adafruit_NeoPixel::frame[0] >> 16);
+  pixels.setState(Neo_pixels::State::previous);
+  pixels.loop();
+  current_time += 50;
+  pixels.loop();
+  EXPECT_GT(Adafruit_NeoPixel::frame[11] & 255, Adafruit_NeoPixel::frame[11] >> 16);
+  pixels.setNormalState(Neo_pixels::State::pause);
+  for (int i = 0; i < 10; ++i) { current_time += 100; pixels.loop(); }
+  EXPECT_GT(Adafruit_NeoPixel::frame[0] & 255, Adafruit_NeoPixel::frame[0] >> 16);
+}
+
 #endif

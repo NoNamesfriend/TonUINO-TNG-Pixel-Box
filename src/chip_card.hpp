@@ -48,6 +48,8 @@ enum class pmode_t: uint8_t {
   pixel_quiet   = pixelQuietCardMode,
   pixel_cycle_animation  = pixelCycleAnimationCardMode,
   timed_night_light = pixelTimedNightCardMode,
+  pixel_cycle_color = pixelCycleColorCardMode,
+  pixel_fixed_color = pixelFixedColorCardMode,
 #endif
 
   admin_card    = 0xff,

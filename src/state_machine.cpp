@@ -548,7 +548,7 @@ bool Base::readCard() {
   case Chip_card::readCardEvent::known:
 #ifdef NeoPixels
     if (lastCardRead.folder != 0 && static_cast<uint8_t>(lastCardRead.mode) >= pixelQuietCardMode
-        && static_cast<uint8_t>(lastCardRead.mode) <= pixelTimedNightCardMode) {
+        && static_cast<uint8_t>(lastCardRead.mode) <= pixelFixedColorCardMode) {
       neoPixels.call_on_feedback(Neo_pixels::Feedback::read_error);
       return false;
     }
@@ -569,7 +569,9 @@ bool Base::readCard() {
 
       if (tonuino.specialCard(lastCardRead)) {
 #ifdef NeoPixels
-        neoPixels.call_on_feedback(Neo_pixels::Feedback::recognized);
+        // Colour cards supply their own preview (or validation error).
+        if (lastCardRead.mode != pmode_t::pixel_cycle_color && lastCardRead.mode != pmode_t::pixel_fixed_color)
+          neoPixels.call_on_feedback(Neo_pixels::Feedback::recognized);
 #endif
         return false;
       }
@@ -2108,7 +2110,7 @@ void Admin_ModCard::entry() {
 
   numberOfOptions   = 11;
 #ifdef NeoPixels
-  numberOfOptions += 4;
+  numberOfOptions += 6;
 #endif
   startMessage      = mp3Tracks::t_970_modifier_Intro;
   messageOffset     = mp3Tracks::t_970_modifier_Intro;
@@ -2137,6 +2139,11 @@ void Admin_ModCard::react(command_e const &cmd_e) {
   if (isAbort(cmd))
     return;
 
+#ifdef NeoPixels
+  if (current_subState == get_color && currentValue != 0)
+    neoPixels.displayAll(pixelHueFromOption(currentValue), 255);
+#endif
+
   switch (current_subState) {
   case get_mode           :
     if (Commands::isSelect(cmd) && (currentValue != 0)) {
@@ -2144,7 +2151,15 @@ void Admin_ModCard::react(command_e const &cmd_e) {
 #ifdef NeoPixels
       if (currentValue >= 13)
         folder.mode = static_cast<pmode_t>(pixelQuietCardMode + currentValue - 13);
-      if (folder.mode == pmode_t::timed_night_light) {
+      if (folder.mode == pmode_t::pixel_fixed_color) {
+        numberOfOptions = 65;
+        startMessage = mp3Tracks::t_1106_card_color_intro;
+        messageOffset = mp3Tracks::t_0;
+        VoiceMenu::entry();
+        currentValue = settings.neoPixelHue / 1000 + 1;
+        current_subState = get_color;
+      }
+      else if (folder.mode == pmode_t::timed_night_light) {
         numberOfOptions = 4;
         startMessage = mp3Tracks::t_1103_night_duration_intro;
         messageOffset = mp3Tracks::t_960_timer_intro;
@@ -2217,6 +2232,15 @@ void Admin_ModCard::react(command_e const &cmd_e) {
       current_subState = start_writeCard;
     }
     break;
+#ifdef NeoPixels
+  case get_color:
+    if (Commands::isSelect(cmd) && currentValue != 0) {
+      folder.special = currentValue;
+      mp3.clearMp3Queue();
+      current_subState = start_writeCard;
+    }
+    break;
+#endif
   case start_writeCard    :
     SM_writeCard::folder = folder;
     SM_writeCard::start();

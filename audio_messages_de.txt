@@ -159,3 +159,7 @@ mp3/1103_night_duration_intro.mp3|Wie lange soll das Nachtlicht leuchten? Dreiß
 advert/0351_quiet_light.mp3|Ruhelicht aktiviert.
 advert/0352_next_animation.mp3|Nächste Wiedergabeanimation gewählt.
 advert/0353_timed_night_light.mp3|Nachtlicht mit Zeitbegrenzung aktiviert.
+mp3/1104_modifier_next_color.mp3|Grundfarben durchschalten. Jedes erneute Auflegen wählt die nächste von acht Farben. Die Auswahl bleibt gespeichert.
+mp3/1105_modifier_fixed_color.mp3|Eine feste Grundfarbe setzen. Wähle beim Erstellen die Farbe für diese Karte. Beim Auflegen wird immer diese Farbe eingestellt.
+mp3/1106_card_color_intro.mp3|Welche Farbe soll auf die Karte? Mit Hoch und Runter kannst du die Farbe auf dem Streifen ansehen. Die Pausetaste bestätigt. Die Grundfarbe der Box wird erst beim Auflegen der fertigen Karte geändert.
+advert/0354_color_selected.mp3|Grundfarbe eingestellt.
