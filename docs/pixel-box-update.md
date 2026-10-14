@@ -13,6 +13,20 @@ Dieser Fork basiert auf TonUINO-TNG `d527ca5f3c5090a74ccdf5505202db352d7531c8` v
 
 Ein Zurücksetzen aller Einstellungen ist für dieses Update nicht erforderlich. Halte beim Start keine Tastenkombination zum Löschen des EEPROM gedrückt.
 
+### Das richtige PlatformIO-Uploadziel
+
+In VS Code wähle unter **PlatformIO → Project Tasks → PixelBox_AiOPlus_5 → General → Upload** das Pixel-Box-Ziel. Für drei Tasten beziehungsweise 3×3 wähle den entsprechenden Pixel-Box-Eintrag. `ALLinONE_Plus_5` enthält die eigenen Animationen nicht. Eine bereits ausgewählte IDE-Aufgabe kann dieses offizielle Ziel verwenden, obwohl `default_envs` in der Projektdatei auf Pixel Box steht.
+
+Im Terminal ist das Ziel ausdrücklich festlegbar, beispielsweise für fünf Tasten und COM3:
+
+```powershell
+pio run -e PixelBox_AiOPlus_5 -t upload --upload-port COM3
+```
+
+Vor dem Upload muss ein anderer serieller Monitor geschlossen sein. Der normale Upload über den Arduino-Bootloader schreibt die Firmware, ohne das EEPROM zu löschen.
+
+Nach einem Neustart zeigt die serielle Konsole bei 115200 Baud die LED-Einstellungen `NP_H`, `NP_V`, `NP_PA` und `NP_NLV`. Fehlen diese vier Zeilen im vollständigen Startprotokoll zwischen `PCR` und `MFRC522`, entspricht die Firmware nicht dem aktuellen Pixel-Box-Build. Die Versionsangabe `V3.3.3` und `A+ 5` allein unterscheiden den offiziellen Build und diesen Fork nicht.
+
 ## Deine Hardware und Animationen
 
 Die Pixel-Box-Builds verwenden die bestätigte Konfiguration: AiO+, 12 LEDs, WS-Pin 18 und maximale NeoPixel-Helligkeit 20 von 255. Pin, LED-Anzahl und maximale Helligkeit stehen einmalig in `src/constants.hpp` als `NeoPixelPin`, `NeoPixelCount` und `NeoPixelBrightness`.
