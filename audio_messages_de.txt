@@ -153,9 +153,9 @@ mp3/0982_modifier_night_light.mp3|Nachtlicht-Modus: Anstatt der LED Effekte leuc
 advert/0350_night_light.mp3|Nachtlicht-Modus aktiviert.
 
 mp3/1100_modifier_quiet_light.mp3|Ruhelicht. Die LEDs leuchten schwach und gleichmäßig. Musik und Einschlaftimer bleiben aktiv.
-mp3/1101_modifier_lively_light.mp3|Lichtprofil Lebhaft. Zwei Lichtpunkte wandern mit wechselnden Farben über den Streifen.
+mp3/1101_modifier_next_animation.mp3|Wiedergabeanimation wechseln. Jedes Auflegen dieser Karte wählt die nächste Animation. Die Auswahl bleibt nach dem Neustart gespeichert.
 mp3/1102_modifier_timed_night.mp3|Nachtlicht mit Zeitbegrenzung. Am Ende wird nur das Licht ausgeschaltet.
 mp3/1103_night_duration_intro.mp3|Wie lange soll das Nachtlicht leuchten? Dreißig Minuten sind voreingestellt. Mit Hoch und Runter kannst du die Zeit ändern. Bestätige mit der Pausetaste.
 advert/0351_quiet_light.mp3|Ruhelicht aktiviert.
-advert/0352_lively_light.mp3|Lichtprofil Lebhaft aktiviert.
+advert/0352_next_animation.mp3|Nächste Wiedergabeanimation gewählt.
 advert/0353_timed_night_light.mp3|Nachtlicht mit Zeitbegrenzung aktiviert.

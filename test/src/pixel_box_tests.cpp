@@ -419,13 +419,13 @@ TEST_F(pixel_box_fixture, empty_battery_uses_the_same_async_shutdown_path) {
 #endif
 
 
-TEST(pixel_settings, all_four_effect_ids_round_trip_without_changing_the_eeprom_layout) {
+TEST(pixel_settings, all_five_effect_ids_round_trip_without_changing_the_eeprom_layout) {
   static_assert(static_cast<uint8_t>(PixelPlayAnimation::dotForwardPulse) == 0);
   static_assert(static_cast<uint8_t>(PixelPlayAnimation::colorCycle) == 1);
   Settings settings{};
   settings.resetSettings();
   settings.writeExtShortCutToFlash(0, {7, pmode_t::album, 0, 0});
-  for (uint8_t effect = 0; effect < 4; ++effect) {
+  for (uint8_t effect = 0; effect < static_cast<uint8_t>(PixelPlayAnimation::NUMBER_OF_ANIMATIONS); ++effect) {
     settings.neoPixelPlayAnimation = effect;
     settings.writeSettingsToFlash();
     Settings loaded{};
@@ -504,11 +504,11 @@ TEST_F(pixel_box_fixture, quiet_light_is_warm_static_and_can_coexist_with_sleep_
   EXPECT_EQ(Adafruit_NeoPixel::showCount, shows);
 }
 
-TEST_F(pixel_box_fixture, lively_profile_has_two_peaks_and_does_not_overwrite_the_saved_animation) {
+TEST_F(pixel_box_fixture, lively_play_animation_has_two_peaks_and_rotating_colors) {
   auto& pixels = tonuino.getNeoPixels();
-  const auto saved = getSettings().neoPixelPlayAnimation;
+  getSettings().neoPixelPlayAnimation = 4;
+  pixels.updateFromSettings(getSettings());
   pixels.setState(Neo_pixels::State::play);
-  pixels.setLightMode(Neo_pixels::LightMode::lively);
   pixels.loop();
   EXPECT_EQ(Adafruit_NeoPixel::frame[0], 20u << 16);
   EXPECT_EQ(Adafruit_NeoPixel::frame[6], 20u << 16);
@@ -516,9 +516,10 @@ TEST_F(pixel_box_fixture, lively_profile_has_two_peaks_and_does_not_overwrite_th
   current_time += 200;
   pixels.loop();
   EXPECT_NE(Adafruit_NeoPixel::frame, first);
-  EXPECT_EQ(getSettings().neoPixelPlayAnimation, saved);
-  pixels.setLightMode(Neo_pixels::LightMode::normal);
-  EXPECT_EQ(getSettings().neoPixelPlayAnimation, saved);
+  current_time += 3000;
+  pixels.loop();
+  EXPECT_NE(Adafruit_NeoPixel::frame[1], first[0]);
+  EXPECT_EQ(getSettings().neoPixelPlayAnimation, 4);
 }
 
 TEST_F(pixel_box_fixture, timed_night_defaults_to_30_minutes_and_only_ends_the_light) {
@@ -576,9 +577,9 @@ TEST_F(pixel_box_fixture, timed_night_and_playback_modifier_reset_are_independen
   ASSERT_TRUE(tonuino.specialCard({0, pmode_t::timed_night_light, 30, 0}));
   EXPECT_FALSE(tonuino.getNeoPixels().timedNightLightActive());
   ASSERT_TRUE(tonuino.specialCard({0, pmode_t::timed_night_light, 30, 0}));
-  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_lively, 0, 0}));
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_cycle_animation, 0, 0}));
   EXPECT_FALSE(tonuino.getNeoPixels().timedNightLightActive());
-  EXPECT_EQ(tonuino.getNeoPixels().getLightMode(), Neo_pixels::LightMode::lively);
+  EXPECT_EQ(tonuino.getNeoPixels().getLightMode(), Neo_pixels::LightMode::normal);
 }
 
 TEST_F(pixel_box_fixture, admin_and_animation_preview_remain_visible_over_timed_night) {
@@ -792,6 +793,56 @@ TEST_F(pixel_box_fixture, lighting_card_is_read_from_rfid_without_stopping_playb
   card_in({0, pmode_t::pixel_quiet, 0, 0});
   EXPECT_EQ(tonuino.getNeoPixels().getLightMode(), Neo_pixels::LightMode::normal);
   EXPECT_TRUE(SM_tonuino::is_in_state<Play>());
+}
+
+TEST_F(pixel_box_fixture, animation_card_cycles_all_five_effects_and_persists_only_the_selection) {
+  goto_play({2, pmode_t::album, 0, 0});
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::sleep_timer, 30, 0}));
+  getSettings().neoPixelPlayAnimation = 0;
+  getSettings().writeSettingsToFlash();
+  uint8_t before[EEPROM.max_len];
+  memcpy(before, EEPROM.eeprom_mem, sizeof(before));
+  for (uint8_t i = 1; i <= 5; ++i) {
+    ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_cycle_animation, 0, 0}));
+    EXPECT_EQ(getSettings().neoPixelPlayAnimation, i % 5);
+    Settings loaded{};
+    loaded.loadSettingsFromFlash();
+    EXPECT_EQ(loaded.neoPixelPlayAnimation, i % 5);
+    EXPECT_EQ(getModifier().getActive(), pmode_t::sleep_timer);
+    EXPECT_TRUE(SM_tonuino::is_in_state<Play>());
+    before[151] = i % 5;
+    EXPECT_EQ(memcmp(before, EEPROM.eeprom_mem, sizeof(before)), 0);
+  }
+}
+
+TEST_F(pixel_box_fixture, animation_card_advances_once_per_rfid_presentation_and_keeps_playing) {
+  goto_play({2, pmode_t::album, 0, 0});
+  getSettings().neoPixelPlayAnimation = 0;
+  getSettings().writeSettingsToFlash();
+  card_out();
+  card_in({0, pmode_t::pixel_cycle_animation, 0, 0});
+  EXPECT_EQ(getSettings().neoPixelPlayAnimation, 1);
+  EXPECT_EQ(getMp3().df_adv_track, 352);
+  execute_cycle_for_ms(1500);
+  EXPECT_EQ(getSettings().neoPixelPlayAnimation, 1);
+  EXPECT_TRUE(SM_tonuino::is_in_state<Play>());
+  card_out();
+  card_in({0, pmode_t::pixel_cycle_animation, 0, 0});
+  EXPECT_EQ(getSettings().neoPixelPlayAnimation, 2);
+  EXPECT_TRUE(SM_tonuino::is_in_state<Play>());
+}
+
+TEST_F(pixel_box_fixture, animation_card_ends_quiet_light_and_is_also_usable_while_idle) {
+  ASSERT_TRUE(SM_tonuino::is_in_state<Idle>());
+  getSettings().neoPixelPlayAnimation = 3;
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_quiet, 0, 0}));
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_cycle_animation, 0, 0}));
+  EXPECT_EQ(tonuino.getNeoPixels().getLightMode(), Neo_pixels::LightMode::normal);
+  EXPECT_EQ(getSettings().neoPixelPlayAnimation, 4);
+  EXPECT_TRUE(SM_tonuino::is_in_state<Idle>());
+  getSettings().neoPixelPlayAnimation = 0;
+  getSettings().loadSettingsFromFlash();
+  EXPECT_EQ(getSettings().neoPixelPlayAnimation, 4);
 }
 
 

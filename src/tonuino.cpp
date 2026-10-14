@@ -703,7 +703,7 @@ void Tonuino::switchEndlessOnOff() {
 bool Tonuino::specialCard(const folderSettings &nfcTag) {
   LOG(card_log, s_debug, F("special card, mode = "), static_cast<uint8_t>(nfcTag.mode));
 #ifdef NeoPixels
-  if (nfcTag.folder == 0 && (nfcTag.mode == pmode_t::pixel_quiet || nfcTag.mode == pmode_t::pixel_lively
+  if (nfcTag.folder == 0 && (nfcTag.mode == pmode_t::pixel_quiet || nfcTag.mode == pmode_t::pixel_cycle_animation
                             || nfcTag.mode == pmode_t::timed_night_light)) {
     // Lighting cards coexist with playback modifiers such as the sleep timer.
     if (activeModifier == &nightLight)
@@ -715,11 +715,18 @@ bool Tonuino::specialCard(const folderSettings &nfcTag) {
       if (enabled) neo_pixels.setTimedNightLight(nfcTag.special);
       else neo_pixels.setNightLight(false);
       message = advertTracks::t_353_timed_night_light;
+    } else if (nfcTag.mode == pmode_t::pixel_cycle_animation) {
+      const auto count = static_cast<uint8_t>(PixelPlayAnimation::NUMBER_OF_ANIMATIONS);
+      settings.neoPixelPlayAnimation = (settings.neoPixelPlayAnimation + 1) % count;
+      settings.writeSettingsToFlash();
+      neo_pixels.setLightMode(Neo_pixels::LightMode::normal);
+      neo_pixels.updateFromSettings(settings);
+      enabled = true;
+      message = advertTracks::t_352_next_animation;
     } else {
-      const auto mode = nfcTag.mode == pmode_t::pixel_quiet ? Neo_pixels::LightMode::quiet : Neo_pixels::LightMode::lively;
-      enabled = neo_pixels.getLightMode() != mode;
-      neo_pixels.setLightMode(enabled ? mode : Neo_pixels::LightMode::normal);
-      message = nfcTag.mode == pmode_t::pixel_quiet ? advertTracks::t_351_quiet_light : advertTracks::t_352_lively_light;
+      enabled = neo_pixels.getLightMode() != Neo_pixels::LightMode::quiet;
+      neo_pixels.setLightMode(enabled ? Neo_pixels::LightMode::quiet : Neo_pixels::LightMode::normal);
+      message = advertTracks::t_351_quiet_light;
     }
     mp3.playAdvertisement(enabled ? message : advertTracks::t_261_deactivate_mod_card, false);
     return true;

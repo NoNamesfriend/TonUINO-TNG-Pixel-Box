@@ -198,12 +198,12 @@ TEST_F(pixel_new_admin_fixture, quiet_card_uses_option_13_prompt_1100_and_rfid_m
   write_and_decode({0, pmode_t::pixel_quiet, 0, 0});
 }
 
-TEST_F(pixel_new_admin_fixture, lively_card_uses_option_14_prompt_1101_and_rfid_mode_201) {
+TEST_F(pixel_new_admin_fixture, animation_card_uses_option_14_prompt_1101_and_rfid_mode_201) {
   goto_light_card_option(14);
   EXPECT_EQ(SM_tonuino::folder.folder, 0);
-  EXPECT_EQ(SM_tonuino::folder.mode, pmode_t::pixel_lively);
+  EXPECT_EQ(SM_tonuino::folder.mode, pmode_t::pixel_cycle_animation);
   EXPECT_EQ(static_cast<uint8_t>(SM_tonuino::folder.mode), 201);
-  write_and_decode({0, pmode_t::pixel_lively, 0, 0});
+  write_and_decode({0, pmode_t::pixel_cycle_animation, 0, 0});
 }
 
 TEST_F(pixel_new_admin_fixture, timed_night_card_defaults_to_30_minutes_and_uses_mode_202) {
@@ -235,8 +235,8 @@ TEST_F(pixel_new_admin_fixture, timed_night_duration_can_be_changed_to_15_minute
   write_and_decode({0, pmode_t::timed_night_light, 15, 0});
 }
 
-TEST_F(pixel_admin_fixture, both_new_effects_are_previewed_and_saved_only_after_confirmation) {
-  for (uint8_t effect=2; effect<=3; ++effect) {
+TEST_F(pixel_admin_fixture, all_new_effects_are_previewed_and_saved_only_after_confirmation) {
+  for (uint8_t effect=2; effect<=4; ++effect) {
     getSettings().neoPixelPlayAnimation=0;
     getSettings().writeSettingsToFlash();
     goto_animation_setting();

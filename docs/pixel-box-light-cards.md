@@ -12,8 +12,9 @@ Im Adminmenü bleibt Option 17 die Auswahl der Wiedergabeanimation. Die Vorschau
 | 2 | 1 | Bestehendes `colorCycle` |
 | 3 | 2 | Leuchtpunkt mit Schweif: ein Punkt mit drei abnehmenden Nachleuchtpunkten, 2,4 Sekunden pro Runde |
 | 4 | 3 | Weiche Farbüberblendung: alle LEDs wechseln gemeinsam zwischen drei Farben, zwölf Sekunden pro Runde |
+| 5 | 4 | Lebhaft: zwei Lichtspitzen mit wechselnden Farben |
 
-Die zwei bisherigen Animationen behalten ihre IDs und ihre Bedeutung. Beide neuen Animationen nutzen die gespeicherte Grundfarbe als Ausgangspunkt. Das EEPROM-Format bleibt bei den bisherigen fünf LED-Datenbytes und der Kennung `PB`, Version 1. Zusätzliche Shortcuts und Hörbuchfortschritt werden nicht verschoben.
+Die bisherigen vier Animationen behalten ihre IDs und ihre Bedeutung. Leuchtpunkt und Farbüberblendung nutzen die gespeicherte Grundfarbe als Ausgangspunkt; „Lebhaft“ wechselt die Farbe selbst. Das EEPROM-Format bleibt bei den bisherigen fünf LED-Datenbytes und der Kennung `PB`, Version 1. Zusätzliche Shortcuts und Hörbuchfortschritt werden nicht verschoben.
 
 ## Lichtkarten erstellen und verwenden
 
@@ -23,10 +24,14 @@ Wähle im Adminmenü Option 6, „Modifikationskarte“, und anschließend die g
 | --- | --- | --- |
 | 12 | Bisheriges Nachtlicht | Dauerhaftes Nachtlicht mit der gespeicherten Nachtlichthelligkeit |
 | 13 | Ruhelicht | Schwaches, warmes Dauerlicht ohne Bewegung; Wiedergabe und Audio-Modifikationen laufen weiter |
-| 14 | Lichtprofil „Lebhaft“ | Zwei Lichtspitzen mit wechselnden Farben während der Wiedergabe |
+| 14 | Wiedergabeanimation wechseln | Jedes erneute Auflegen wählt und speichert die nächste der fünf Play-Animationen |
 | 15 | Zeitbegrenztes Nachtlicht | Standardmäßig 30 Minuten; über Hoch/Runter sind 5, 15, 30 oder 60 Minuten wählbar, Pausetaste bestätigt |
 
-Lege eine aktive Ruhelicht- oder Lebhaft-Karte erneut auf, um zur gespeicherten normalen Wiedergabeanimation zurückzukehren. Eine andere Lichtprofilkarte wechselt direkt das Profil. Beim Auflegen einer Profilkarte endet ein laufendes Nachtlicht.
+Lege eine aktive Ruhelichtkarte erneut auf, um zur gespeicherten normalen Wiedergabeanimation zurückzukehren.
+
+Die Animationskarte schaltet von der aktuell gespeicherten Auswahl weiter: `dotForwardPulse` → `colorCycle` → Leuchtpunkt mit Schweif → weiche Farbüberblendung → „Lebhaft“ → `dotForwardPulse`. Für den nächsten Wechsel nimmst du die Karte ab und legst sie erneut auf. Eine liegenbleibende Karte rotiert nicht fortlaufend. Die Auswahl wird sofort gespeichert und bleibt nach einem Neustart erhalten; das Adminmenü zeigt dieselbe Auswahl.
+
+Die Animationskarte beendet Ruhelicht und Nachtlicht, damit während der Wiedergabe die neue Animation sichtbar wird. Musik und aktive Audio-Modifikationen laufen weiter. Auch im Idle-/Pausenzustand lässt sich die Auswahl wechseln; die Play-Animation erscheint beim Fortsetzen der Wiedergabe. Einschlaftimer-, Spiel- und kurze Rückmeldungen behalten ihre Priorität.
 
 Die neuen Lichtkarten sind unabhängig von den bisherigen Audio-Modifikationen. Beispielsweise können Ruhelicht und Einschlaftimer gemeinsam aktiv sein. Das zeitbegrenzte Nachtlicht kann ebenfalls mit einer Audio-Modifikation kombiniert werden. Die alte Nachtlichtkarte verwendet weiterhin den bisherigen Nachtlicht-Modifikator.
 
@@ -34,7 +39,7 @@ Das zeitbegrenzte Nachtlicht leuchtet zunächst gleichmäßig. In der letzten Mi
 
 Ein aktives Nachtlicht verhindert eine vorzeitige Standby-Abschaltung. Sobald es endet oder deaktiviert wird, beginnt im Idle-/Pausenzustand die konfigurierte Standby-Zeit neu. Ein leerer Akku und ausdrücklich angefordertes Abschalten haben weiterhin Vorrang.
 
-Die neuen Profile und Nachtlichtlaufzeiten werden auf der Modifikationskarte beziehungsweise nur für die aktuelle Sitzung verwaltet. Ein Neustart stellt die gespeicherte normale Animation wieder her.
+Ruhelicht und das aktive Nachtlicht gelten nur für die aktuelle Sitzung. Die Nachtlichtdauer steht auf der Karte. Die Animationsauswahl bleibt im EEPROM gespeichert.
 
 ## Rückmeldungen auf dem Streifen
 
@@ -60,10 +65,12 @@ Menüpositionen, gespeicherte Kartenmodi und Soundnummern sind getrennt. Die dre
 | Karte | RFID-Modus | `special` | Menüansage | Aktivierungsansage |
 | --- | ---: | --- | --- | --- |
 | Ruhelicht | 200 | 0 | `mp3/1100_modifier_quiet_light.mp3` | `advert/0351_quiet_light.mp3` |
-| Lebhaft | 201 | 0 | `mp3/1101_modifier_lively_light.mp3` | `advert/0352_lively_light.mp3` |
+| Wiedergabeanimation wechseln | 201 | 0 | `mp3/1101_modifier_next_animation.mp3` | `advert/0352_next_animation.mp3` |
 | Zeitbegrenztes Nachtlicht | 202 | Minuten; 0 oder ungültige Werte verwenden 30 | `mp3/1102_modifier_timed_night.mp3` | `advert/0353_timed_night_light.mp3` |
 
 `special2` bleibt 0. Die neue Einleitung für die Nachtlichtdauer ist `mp3/1103_night_duration_intro.mp3`. Die Zeitansagen 0961 bis 0964 werden wiederverwendet. Die Modusnummern 200 bis 202 sind Festlegungen dieses Forks; sie müssen bei späteren Upstream-Updates weiter abgeglichen werden. Musikordner mit diesen Licht-Modi werden als ungültige Karte zurückgewiesen.
+
+Eine bereits als „Lebhaft“ programmierte Karte mit Modus 201 wechselt nach diesem Update die Play-Animation. Die Karte muss dafür nicht neu beschrieben werden. Aktualisiere die Systemordner auf der SD-Karte vollständig, damit die ersetzten Ansagen 1101 und 0352 passen.
 
 Das vollständige deutsche SD-Paket muss aktualisiert werden, damit die neuen Ansagen vorhanden sind. Erzeuge es mit `python tools/package_pixel_box.py`; der allgemeine Updateablauf steht in [pixel-box-update.md](pixel-box-update.md). Die sieben neuen deutschen Ansagen wurden lokal mit „Microsoft Katja“ erzeugt. `tools/generate_pixel_box_prompts.ps1` kann sie unter Windows mit dieser installierten Stimme und FFmpeg erneut erstellen.
 

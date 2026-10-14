@@ -251,10 +251,6 @@ void Neo_pixels::animNewCard()
 
 void Neo_pixels::animPlay()
 {
-  if (state == State::play && lightMode == LightMode::lively) {
-    animComet(true);
-    return;
-  }
   switch (playAnimation)
   {
   case PlayAnimation::dotForwardPulse:
@@ -268,6 +264,9 @@ void Neo_pixels::animPlay()
     break;
   case PlayAnimation::colorBlend:
     animColorBlend();
+    break;
+  case PlayAnimation::lively:
+    animComet(true);
     break;
   default:
     break;

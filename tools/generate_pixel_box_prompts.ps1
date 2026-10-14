@@ -1,3 +1,5 @@
+param([string[]]$Names = @())
+
 $ErrorActionPreference = 'Stop'
 $repoPath = Split-Path -Parent $PSScriptRoot
 New-Item -ItemType Directory -Path (Join-Path $repoPath 'build') -Force | Out-Null
@@ -6,15 +8,16 @@ $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
 $synth.SelectVoice('Microsoft Katja')
 $prompts = @(
   @{ Folder = 'mp3'; Name = '1100_modifier_quiet_light'; Text = 'Ruhelicht. Die LEDs leuchten schwach und gleichmäßig. Musik und Einschlaftimer bleiben aktiv.' },
-  @{ Folder = 'mp3'; Name = '1101_modifier_lively_light'; Text = 'Lichtprofil Lebhaft. Zwei Lichtpunkte wandern mit wechselnden Farben über den Streifen.' },
+  @{ Folder = 'mp3'; Name = '1101_modifier_next_animation'; Text = 'Wiedergabeanimation wechseln. Jedes Auflegen dieser Karte wählt die nächste Animation. Die Auswahl bleibt nach dem Neustart gespeichert.' },
   @{ Folder = 'mp3'; Name = '1102_modifier_timed_night'; Text = 'Nachtlicht mit Zeitbegrenzung. Am Ende wird nur das Licht ausgeschaltet.' },
   @{ Folder = 'mp3'; Name = '1103_night_duration_intro'; Text = 'Wie lange soll das Nachtlicht leuchten? Dreißig Minuten sind voreingestellt. Mit Hoch und Runter kannst du die Zeit ändern. Bestätige mit der Pausetaste.' },
   @{ Folder = 'advert'; Name = '0351_quiet_light'; Text = 'Ruhelicht aktiviert.' },
-  @{ Folder = 'advert'; Name = '0352_lively_light'; Text = 'Lichtprofil Lebhaft aktiviert.' },
+  @{ Folder = 'advert'; Name = '0352_next_animation'; Text = 'Nächste Wiedergabeanimation gewählt.' },
   @{ Folder = 'advert'; Name = '0353_timed_night_light'; Text = 'Nachtlicht mit Zeitbegrenzung aktiviert.' }
 )
 try {
   foreach ($prompt in $prompts) {
+    if ($Names.Count -gt 0 -and $prompt.Name -notin $Names) { continue }
     $wavPath = Join-Path $repoPath ('build\' + $prompt.Name + '.wav')
     $mp3Path = Join-Path $repoPath ('sd-card\' + $prompt.Folder + '\' + $prompt.Name + '.mp3')
     $synth.SetOutputToWaveFile($wavPath)

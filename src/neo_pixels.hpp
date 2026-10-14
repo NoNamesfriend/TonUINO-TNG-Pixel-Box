@@ -18,7 +18,7 @@ public:
     night_light, play_preview, startup, shutdown
   };
   using PlayAnimation = PixelPlayAnimation;
-  enum class LightMode : uint8_t { normal, quiet, lively };
+  enum class LightMode : uint8_t { normal, quiet };
   enum class Feedback : uint8_t { none, recognized, empty_card, read_error, locked, battery, game_good, game_bad };
   enum class GameSelection : uint8_t { none, first, second, quiz };
 
