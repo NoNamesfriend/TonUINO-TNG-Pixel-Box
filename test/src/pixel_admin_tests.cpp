@@ -85,14 +85,25 @@ TEST_F(pixel_admin_fixture, first_play_preview_pulses_at_maximum_base_brightness
   const auto first = Adafruit_NeoPixel::frame;
   bool moves = false;
   bool hasPulse = false;
+  bool hasClearContrast = false;
   for (int i = 0; i < 120; ++i) {
     execute_cycle_for_ms(100);
     moves |= Adafruit_NeoPixel::frame != first;
     for (unsigned int j = 1; j < NeoPixelCount; ++j)
       hasPulse |= Adafruit_NeoPixel::frame[j] != Adafruit_NeoPixel::frame[0];
+    uint8_t low = 255;
+    uint8_t high = 0;
+    for (auto color : Adafruit_NeoPixel::frame) {
+      const uint8_t value = max(color >> 16, max((color >> 8) & 255, color & 255));
+      low = min(low, value);
+      high = max(high, value);
+    }
+    // Assert contrast in the actual scaled RGB buffer, not merely any change.
+    hasClearContrast |= low > 0 && high >= 2 * low;
   }
   EXPECT_TRUE(moves);
   EXPECT_TRUE(hasPulse);
+  EXPECT_TRUE(hasClearContrast);
   EXPECT_EQ(getSettings().neoPixelBaseValue, 255);
   EXPECT_EQ(memcmp(before, EEPROM.eeprom_mem, sizeof(before)), 0);
 }

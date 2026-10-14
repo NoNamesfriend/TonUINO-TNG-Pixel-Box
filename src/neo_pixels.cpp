@@ -374,9 +374,10 @@ void Neo_pixels::animVolume(uint8_t currentVolume, uint8_t minVolume, uint8_t ma
 
 void Neo_pixels::dotForwardPulse()
 {
-  // Keep at least 64 levels of headroom for the bright dots. A background
-  // of 255 would make every pulse frame identical, also in the live preview.
-  const uint8_t pulseBase = min(baseValue, static_cast<uint8_t>(191));
+  // Keep the default background as the maximum for this effect. At the global
+  // brightness of 20, a 191 background gives only 15 versus 20 RGB levels;
+  // 95 gives about 7 versus 20, so the moving dots remain clearly visible.
+  const uint8_t pulseBase = min(baseValue, static_cast<uint8_t>(95));
   if (renderedState != state)
   {
     isPreparing = true;

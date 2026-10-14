@@ -16,7 +16,7 @@ Im Adminmenü bleibt Option 17 die Auswahl der Wiedergabeanimation. Die Vorschau
 
 Die bisherigen vier Animationen behalten ihre IDs und ihre Bedeutung. Leuchtpunkt und Farbüberblendung nutzen die gespeicherte Grundfarbe als Ausgangspunkt; „Lebhaft“ wechselt die Farbe selbst. Das EEPROM-Format bleibt bei den bisherigen fünf LED-Datenbytes und der Kennung `PB`, Version 1. Zusätzliche Shortcuts und Hörbuchfortschritt werden nicht verschoben.
 
-Die erste Animation benötigt einen Helligkeitsunterschied zwischen Grundniveau und den hellen Punkten. Deshalb verwendet sie bei gespeicherten Werten über 191 intern ein Grundniveau von 191 und Lichtspitzen bis 255. Auch bei Grundhelligkeitsstufe 16 bleibt sie dadurch sichtbar in Bewegung. Werte bis 191, Farbe, Muster und Tempo bleiben erhalten. Die Begrenzung gilt sowohl für die Vorschau als auch für die Wiedergabe; sie verändert weder die gespeicherte Einstellung noch die Helligkeit anderer Animationen. Die feste Hardwaregrenze bleibt bei 20 von 255.
+Die erste Animation benötigt einen Helligkeitsunterschied zwischen Grundniveau und den hellen Punkten. Deshalb verwendet sie bei gespeicherten Werten über 95 intern ein Grundniveau von 95 und Lichtspitzen bis 255. Bei der festen globalen Helligkeit 20 entspricht das ungefähr RGB-Helligkeitswerten 7 für den Hintergrund und 20 für die Lichtspitzen. So bleibt auch bei Grundhelligkeitsstufe 16 ein deutlicher Unterschied. Werte bis 95, Farbe, Muster und Tempo bleiben erhalten. Die Begrenzung gilt sowohl für die Vorschau als auch für die Wiedergabe; sie verändert weder die gespeicherte Einstellung noch die Helligkeit anderer Animationen. Die feste Hardwaregrenze bleibt bei 20 von 255.
 
 ## Lichtkarten erstellen und verwenden
 
