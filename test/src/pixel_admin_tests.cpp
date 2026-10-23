@@ -134,7 +134,7 @@ TEST_F(pixel_admin_fixture, pixel_options_keep_audio_numbers_and_setting_types) 
   }
 }
 
-TEST_F(pixel_admin_fixture, night_light_modifier_uses_option_12_and_track_982) {
+TEST_F(pixel_admin_fixture, night_light_option_12_keeps_track_982_and_opens_the_duration_menu) {
   goto_admin();
   for (uint8_t i = 0; i < 6; ++i) {
     button_for_command(command::next, state_for_command::admin);
@@ -156,7 +156,9 @@ TEST_F(pixel_admin_fixture, night_light_modifier_uses_option_12_and_track_982) {
   }
   button_for_command(command::select, state_for_command::admin);
   EXPECT_EQ(SM_tonuino::folder.folder, 0);
-  EXPECT_EQ(SM_tonuino::folder.mode, pmode_t::night_light);
+  EXPECT_EQ(SM_tonuino::folder.mode, pmode_t::timed_night_light);
+  execute_cycle_for_ms(time_check_play);
+  EXPECT_EQ(getMp3().df_mp3_track, 1103);
   EXPECT_EQ(static_cast<uint8_t>(pmode_t::pause_aft_tr), 9);
 }
 
@@ -224,17 +226,33 @@ public:
   }
 };
 
-TEST_F(pixel_new_admin_fixture, quiet_card_uses_option_13_prompt_1100_and_rfid_mode_200) {
-  goto_light_card_option(13);
-  EXPECT_EQ(SM_tonuino::folder.folder, 0);
-  EXPECT_EQ(SM_tonuino::folder.mode, pmode_t::pixel_quiet);
-  EXPECT_EQ(static_cast<uint8_t>(SM_tonuino::folder.mode), 200);
-  EXPECT_EQ(SM_tonuino::folder.special, 0);
-  write_and_decode({0, pmode_t::pixel_quiet, 0, 0});
+TEST_F(pixel_new_admin_fixture, unified_menu_has_exactly_one_night_light_and_fifteen_options) {
+  goto_admin();
+  for (uint8_t i = 0; i < 6; ++i) {
+    button_for_command(command::next, state_for_command::admin);
+    execute_cycle_for_ms(time_check_play);
+    getMp3().end_track(); execute_cycle();
+  }
+  button_for_command(command::select, state_for_command::admin);
+  execute_cycle_for_ms(time_check_play);
+  getMp3().end_track(); execute_cycle();
+  const uint16_t sounds[] = {971, 972, 973, 974, 975, 976, 977, 978, 979, 980, 981, 982, 1101, 1104, 1105};
+  for (auto sound : sounds) {
+    button_for_command(command::next, state_for_command::admin);
+    execute_cycle_for_ms(time_check_play);
+    EXPECT_EQ(getMp3().df_mp3_track, sound);
+    getMp3().end_track(); execute_cycle();
+  }
+  button_for_command(command::next, state_for_command::admin);
+  execute_cycle_for_ms(time_check_play);
+  EXPECT_EQ(getMp3().df_mp3_track, 1105);
+  getMp3().end_track(); execute_cycle();
+  button_for_command(command::select, state_for_command::admin);
+  EXPECT_EQ(SM_tonuino::folder.mode, pmode_t::pixel_fixed_color);
 }
 
-TEST_F(pixel_new_admin_fixture, animation_card_uses_option_14_prompt_1101_and_rfid_mode_201) {
-  goto_light_card_option(14);
+TEST_F(pixel_new_admin_fixture, animation_card_uses_option_13_prompt_1101_and_rfid_mode_201) {
+  goto_light_card_option(13);
   EXPECT_EQ(SM_tonuino::folder.folder, 0);
   EXPECT_EQ(SM_tonuino::folder.mode, pmode_t::pixel_cycle_animation);
   EXPECT_EQ(static_cast<uint8_t>(SM_tonuino::folder.mode), 201);
@@ -242,7 +260,7 @@ TEST_F(pixel_new_admin_fixture, animation_card_uses_option_14_prompt_1101_and_rf
 }
 
 TEST_F(pixel_new_admin_fixture, timed_night_card_defaults_to_30_minutes_and_uses_mode_202) {
-  goto_light_card_option(15);
+  goto_light_card_option(12);
   EXPECT_EQ(SM_tonuino::folder.mode, pmode_t::timed_night_light);
   execute_cycle_for_ms(time_check_play);
   EXPECT_EQ(getMp3().df_mp3_track, 1103);
@@ -256,7 +274,7 @@ TEST_F(pixel_new_admin_fixture, timed_night_card_defaults_to_30_minutes_and_uses
 }
 
 TEST_F(pixel_new_admin_fixture, timed_night_duration_can_be_changed_to_15_minutes) {
-  goto_light_card_option(15);
+  goto_light_card_option(12);
   execute_cycle_for_ms(time_check_play);
   getMp3().end_track(); execute_cycle();
   button_for_command(command::previous, state_for_command::admin);
@@ -268,6 +286,29 @@ TEST_F(pixel_new_admin_fixture, timed_night_duration_can_be_changed_to_15_minute
   execute_cycle();
   EXPECT_EQ(SM_writeCard::folder, (folderSettings{0, pmode_t::timed_night_light, 15, 0}));
   write_and_decode({0, pmode_t::timed_night_light, 15, 0});
+}
+
+TEST_F(pixel_new_admin_fixture, night_duration_ends_with_unlimited_and_preserves_its_rfid_value) {
+  goto_light_card_option(12);
+  execute_cycle_for_ms(time_check_play);
+  getMp3().end_track(); execute_cycle();
+  button_for_command(command::next, state_for_command::admin);
+  execute_cycle_for_ms(time_check_play);
+  EXPECT_EQ(getMp3().df_mp3_track, 964); // 60 minutes.
+  getMp3().end_track(); execute_cycle();
+  button_for_command(command::next, state_for_command::admin);
+  execute_cycle_for_ms(time_check_play);
+  EXPECT_EQ(getMp3().df_mp3_track, 1107); // Unlimited is the final duration.
+  getMp3().end_track(); execute_cycle();
+  button_for_command(command::next, state_for_command::admin);
+  execute_cycle_for_ms(time_check_play);
+  EXPECT_EQ(getMp3().df_mp3_track, 1107); // Stay at the last option.
+  getMp3().end_track(); execute_cycle();
+  button_for_command(command::select, state_for_command::admin);
+  EXPECT_EQ(SM_tonuino::folder.special, 255);
+  execute_cycle();
+  EXPECT_EQ(SM_writeCard::folder, (folderSettings{0, pmode_t::timed_night_light, 255, 0}));
+  write_and_decode({0, pmode_t::timed_night_light, 255, 0});
 }
 
 TEST_F(pixel_admin_fixture, all_new_effects_are_previewed_and_saved_only_after_confirmation) {
@@ -293,8 +334,8 @@ TEST_F(pixel_admin_fixture, all_new_effects_are_previewed_and_saved_only_after_c
     goto_idle();
   }
 }
-TEST_F(pixel_new_admin_fixture, color_cycle_card_uses_option_16_prompt_1104_and_mode_203) {
-  goto_light_card_option(16);
+TEST_F(pixel_new_admin_fixture, color_cycle_card_uses_option_14_prompt_1104_and_mode_203) {
+  goto_light_card_option(14);
   EXPECT_EQ(SM_tonuino::folder.mode, pmode_t::pixel_cycle_color);
   EXPECT_EQ(static_cast<uint8_t>(SM_tonuino::folder.mode), 203);
   write_and_decode({0, pmode_t::pixel_cycle_color, 0, 0});
@@ -305,7 +346,7 @@ TEST_F(pixel_new_admin_fixture, fixed_color_card_previews_and_writes_selection_6
   getSettings().writeSettingsToFlash();
   uint8_t before[EEPROM.max_len];
   memcpy(before, EEPROM.eeprom_mem, sizeof(before));
-  goto_light_card_option(17);
+  goto_light_card_option(15);
   EXPECT_EQ(SM_tonuino::folder.mode, pmode_t::pixel_fixed_color);
   EXPECT_EQ(static_cast<uint8_t>(SM_tonuino::folder.mode), 204);
   execute_cycle_for_ms(time_check_play);
@@ -331,7 +372,7 @@ TEST_F(pixel_new_admin_fixture, aborting_fixed_color_card_discards_the_preview_a
   getSettings().writeSettingsToFlash();
   uint8_t before[EEPROM.max_len];
   memcpy(before, EEPROM.eeprom_mem, sizeof(before));
-  goto_light_card_option(17);
+  goto_light_card_option(15);
   execute_cycle_for_ms(time_check_play);
   getMp3().end_track(); execute_cycle();
   button_for_command(command::next, state_for_command::admin);

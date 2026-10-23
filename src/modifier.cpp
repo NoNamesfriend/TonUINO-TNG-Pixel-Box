@@ -335,14 +335,3 @@ String JukeboxModifier::getDescription() {
 #endif
 
 #endif
-
-
-#ifdef NeoPixels
-void NightLight::loop() {
-}
-
-void NightLight::init(pmode_t, uint8_t) {
-  tonuino.getNeoPixels().setNightLight(true);
-  mp3.playAdvertisement(advertTracks::t_350_night_light, false);
-}
-#endif

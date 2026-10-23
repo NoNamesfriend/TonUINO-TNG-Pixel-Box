@@ -21,7 +21,6 @@ void Neo_pixels::init(const Settings& settings)
   isStateBlocking = false;
   nightLightEnabled = false;
   timedNight = false;
-  lightMode = LightMode::normal;
   feedback = Feedback::none;
   gameSelection = GameSelection::none;
   sleepEnabled = false;
@@ -55,10 +54,6 @@ void Neo_pixels::loop(uint8_t volume, uint8_t minVolume, uint8_t maxVolume)
       && state != State::new_card && state != State::next && state != State::previous && state != State::volume) {
     if (sleepEnabled) {
       animSleep();
-      return;
-    }
-    if (lightMode == LightMode::quiet) {
-      displayColor(scaleColor(0xffa62dUL, 33));
       return;
     }
     if (gameSelection != GameSelection::none) {
@@ -529,7 +524,7 @@ void Neo_pixels::displayAdmin()
 
 void Neo_pixels::displayNightLight()
 {
-  displayAll(5000, nightLightValue);
+  displayAll(pixelNightLightHue, nightLightValue);
 }
 
 bool Neo_pixels::fadeTo(uint8_t target)

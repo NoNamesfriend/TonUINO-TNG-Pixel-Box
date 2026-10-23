@@ -183,6 +183,7 @@ enum class mp3Tracks: uint16_t {
   t_1104_modifier_next_color = 1104,
   t_1105_modifier_fixed_color = 1105,
   t_1106_card_color_intro = 1106,
+  t_1107_night_duration_unlimited = 1107,
 #endif
   t_985_admin_lock_intro       = 985,
   t_986_admin_lock_disabled    = 986,

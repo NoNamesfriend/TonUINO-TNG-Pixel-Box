@@ -93,6 +93,8 @@ void VoiceMenu<SMT>::playCurrentValue() {
 #ifdef NeoPixels
   if (messageOffset == mp3Tracks::t_970_modifier_Intro)
     mp3.enqueueMp3FolderTrack(static_cast<mp3Tracks>(pixelModifierSound(currentValue)));
+  else if (startMessage == mp3Tracks::t_1103_night_duration_intro && currentValue == 5)
+    mp3.enqueueMp3FolderTrack(mp3Tracks::t_1107_night_duration_unlimited);
   else
 #endif
     mp3.enqueueMp3FolderTrack(messageOffset + currentValue);
@@ -699,6 +701,7 @@ bool Base::checkForShortcutAndShutdown(command cmd) {
                            mp3.loop();
                            for (uint8_t i = 0; i < 100 && not tonuino.getButtons().isNoButton(); ++i){ // wait max 10 seconds
                              delay(100);
+                             tonuino.getButtons().getCommandRaw(); // Refresh the cached button state; ignore further commands during shutdown.
                            }
                            tonuino.shutdown();
                                                break;
@@ -2061,7 +2064,7 @@ void Admin_SimpleSetting::react(command_e const &cmd_e) {
   else if (type == neoPixelBaseValue)
     neoPixels.displayAll(settings.neoPixelHue, currentValue * 16 - 1);
   else if (type == neoPixelNightLightValue)
-    neoPixels.displayAll(5000, currentValue * 16 - 1);
+    neoPixels.displayAll(pixelNightLightHue, currentValue * 16 - 1);
   #endif
 
   if (cmd_e.cmd_raw != commandRaw::none) {
@@ -2110,7 +2113,7 @@ void Admin_ModCard::entry() {
 
   numberOfOptions   = 11;
 #ifdef NeoPixels
-  numberOfOptions += 6;
+  numberOfOptions += 4;
 #endif
   startMessage      = mp3Tracks::t_970_modifier_Intro;
   messageOffset     = mp3Tracks::t_970_modifier_Intro;
@@ -2149,8 +2152,12 @@ void Admin_ModCard::react(command_e const &cmd_e) {
     if (Commands::isSelect(cmd) && (currentValue != 0)) {
       folder.mode = static_cast<pmode_t>(currentValue);
 #ifdef NeoPixels
-      if (currentValue >= 13)
-        folder.mode = static_cast<pmode_t>(pixelQuietCardMode + currentValue - 13);
+      switch (currentValue) {
+      case 12: folder.mode = pmode_t::timed_night_light; break;
+      case 13: folder.mode = pmode_t::pixel_cycle_animation; break;
+      case 14: folder.mode = pmode_t::pixel_cycle_color; break;
+      case 15: folder.mode = pmode_t::pixel_fixed_color; break;
+      }
       if (folder.mode == pmode_t::pixel_fixed_color) {
         numberOfOptions = 65;
         startMessage = mp3Tracks::t_1106_card_color_intro;
@@ -2160,7 +2167,7 @@ void Admin_ModCard::react(command_e const &cmd_e) {
         current_subState = get_color;
       }
       else if (folder.mode == pmode_t::timed_night_light) {
-        numberOfOptions = 4;
+        numberOfOptions = 5;
         startMessage = mp3Tracks::t_1103_night_duration_intro;
         messageOffset = mp3Tracks::t_960_timer_intro;
         VoiceMenu::entry();
@@ -2205,6 +2212,11 @@ void Admin_ModCard::react(command_e const &cmd_e) {
       case 4:
         folder.special = 60;
         break;
+#ifdef NeoPixels
+      case 5: // Only the night-light duration menu offers unlimited.
+        folder.special = pixelUnlimitedNightMinutes;
+        break;
+#endif
       }
 #ifdef NeoPixels
       if (folder.mode == pmode_t::timed_night_light) {

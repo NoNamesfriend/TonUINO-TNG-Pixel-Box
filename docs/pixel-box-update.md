@@ -9,9 +9,21 @@ Dieser Fork basiert auf TonUINO-TNG `d527ca5f3c5090a74ccdf5505202db352d7531c8` v
 3. Übertrage die Firmware mit dem üblichen Verfahren für deine AiO+-Platine. Die erzeugte HEX-Datei liegt unter `.pio/build/<Build-Variante>/firmware.hex`. Mit PlatformIO ist beispielsweise `pio run -e PixelBox_AiOPlus_5 -t upload` möglich. Die offiziellen Online-Uploader installieren die offizielle Firmware; verwende für deine Animationen die Firmware dieses Forks.
 4. Erzeuge mit `python tools/package_pixel_box.py` das Paket `build/pixelbox_sdcard.zip`. Es enthält `mp3/` und `advert/` direkt für das Wurzelverzeichnis der SD-Karte. Ersetze nach der Sicherung diese beiden Systemordner vollständig. Nur neue Dateien darüberzukopieren reicht nicht: Alte Dateien mit gleicher vierstelliger Nummer würden auf der Karte bleiben. Deine Musikordner `01` bis `99` bleiben erhalten.
 5. Starte die Box neu. Die bisherigen gültigen LED-Einstellungen werden beim ersten Start übernommen. Prüfe Farbe, Grundhelligkeit, Wiedergabeanimation und Nachtlichthelligkeit im Adminmenü.
-6. Programmiere vorhandene Nachtlicht-Karten über „Modifikationskarte“ neu. Das Nachtlicht ist dort Option 12. Alte Nachtlicht-Karten mit Modus 9 können nicht automatisch erkannt werden: Sie enthalten dieselben Daten wie die neue offizielle Karte „Pause nach jedem Track“. Andere vorhandene TonUINO-Karten behalten ihre Bedeutung.
+6. Unter „Modifikationskarte“, Option 12, erstellst du Nachtlichtkarten mit 5, 15, 30, 60 Minuten oder unbegrenzter Dauer. Die bisherigen Karten mit Modus 12, 200 oder 202 funktionieren ohne Neuprogrammierung weiter. Nur historische Nachtlicht-Karten mit Modus 9 müssen neu beschrieben werden: Sie enthalten dieselben Daten wie die offizielle Karte „Pause nach jedem Track“. Andere vorhandene TonUINO-Karten behalten ihre Bedeutung.
 
 Ein Zurücksetzen aller Einstellungen ist für dieses Update nicht erforderlich. Halte beim Start keine Tastenkombination zum Löschen des EEPROM gedrückt.
+
+### Gemeinsames Nachtlicht
+
+Die drei bisherigen Einträge „Nachtlicht“, „Ruhelicht“ und „Nachtlicht mit Zeitbegrenzung“ sind unter „Modifikationskarte“, Option 12, zu „Nachtlicht“ zusammengefasst. Es leuchtet gelb mit der gespeicherten Nachtlichthelligkeit. Als Dauer wählst du 5, 15, 30, 60 Minuten oder zuletzt „Unbegrenzt“; 30 Minuten bleiben vorausgewählt.
+
+Bisherige Nachtlichtkarten mit Modus 12 und Ruhelichtkarten mit Modus 200 schalten dasselbe Nachtlicht unbegrenzt ein. Karten mit Modus 202 behalten ihre gespeicherte Dauer. Alle drei Kartenarten schalten ein laufendes Nachtlicht beim erneuten Auflegen aus und können parallel zu Audio-Modifikationen wie dem Einschlaftimer verwendet werden.
+
+Die Standby-Zeit läuft bei Pause oder Leerlauf während des Nachtlichts weiter. Ist sie bereits abgelaufen, wartet die Box auf das Ende des Nachtlichts und schaltet sich dann aus. Endet das Nachtlicht früher, bleibt die ursprüngliche Standby-Frist erhalten. Laufende Musikwiedergabe deaktiviert den Standby-Timer weiterhin. Ein ausdrücklich eingestellter Einschlaftimer kann die Box weiterhin abschalten.
+
+Aktualisiere die Firmware und ersetze auf der SD-Karte `mp3/0982_modifier_night_light.mp3`. Die Ansagen `mp3/1103_night_duration_intro.mp3` und `mp3/1107_night_duration_unlimited.mp3` aus der vorherigen Erweiterung bleiben erforderlich. Das aktuelle vollständige SD-Paket enthält alle benötigten Dateien. Die Aktivierungsansage ist für jede Nachtlichtkarte `advert/0350_night_light.mp3`.
+
+Wenn das vorherige SD-Update bereits eingespielt ist, genügt das Teilpaket `build/nightlight-prompts.zip`. Entpacke dessen Ordner `mp3` ins Wurzelverzeichnis der SD-Karte und ersetze die gleichnamigen Dateien. Es enthält 0982, 1103 und 1107; die Firmware muss zusätzlich aktualisiert werden.
 
 ### Das richtige PlatformIO-Uploadziel
 
@@ -24,6 +36,8 @@ pio run -e PixelBox_AiOPlus_5 -t upload --upload-port COM3
 ```
 
 Vor dem Upload muss ein anderer serieller Monitor geschlossen sein. Der normale Upload über den Arduino-Bootloader schreibt die Firmware, ohne das EEPROM zu löschen.
+
+Die Abschaltkorrektur vom 22. Oktober 2026 liest nach dem Pling den Tastenzustand erneut ein. Lasse Play/Pause nach dem Pling los; anschließend laufen Abschaltanimation und Stromabschaltung ab. Zuvor konnte die Schleife trotz losgelassener Taste zehn Sekunden auf einem veralteten Tastenzustand warten. Eine dunkel bleibende LED-Leiste wird dadurch allein noch nicht erklärt.
 
 Nach einem Neustart zeigt die serielle Konsole bei 115200 Baud die LED-Einstellungen `NP_H`, `NP_V`, `NP_PA` und `NP_NLV`. Fehlen diese vier Zeilen im vollständigen Startprotokoll zwischen `PCR` und `MFRC522`, entspricht die Firmware nicht dem aktuellen Pixel-Box-Build. Die Versionsangabe `V3.3.3` und `A+ 5` allein unterscheiden den offiziellen Build und diesen Fork nicht.
 
@@ -52,11 +66,11 @@ Die offiziellen 14 Adminoptionen behalten ihre Nummern. Deine Einstellungen steh
 | 17 | Neo Pixel Play Animation | `mp3/0917…` | `mp3/0952…` |
 | 18 | Helligkeit für Nachtlicht | `mp3/0918…` | `mp3/0953…` |
 
-Die Nachtlicht-Modifikationskarte verwendet Modus 12 und Menüansage `mp3/0982_modifier_night_light.mp3`. Ihre Aktivierungsansage bleibt `advert/0350_night_light.mp3`. Die bisherige Datei `mp3/0326_mode_night_light.mp3` entfällt: 0326 ist inzwischen die offizielle Ansage für den Hörbuchmodus mit Titelbereich. Die offiziellen Modifikationskarten belegen 0971 bis 0981; die Ansagen für die Adminsperre sind nach 0985 bis 0989 verschoben. Die alten Dateien 0980 bis 0984 für die Adminsperre gehören deshalb nicht mehr auf die Karte.
+Neue Nachtlichtkarten verwenden Modus 202 und Menüansage `mp3/0982_modifier_night_light.mp3`. Ihre Aktivierungsansage bleibt `advert/0350_night_light.mp3`. Die bisherige Datei `mp3/0326_mode_night_light.mp3` entfällt: 0326 ist inzwischen die offizielle Ansage für den Hörbuchmodus mit Titelbereich. Die offiziellen Modifikationskarten belegen 0971 bis 0981; die Ansagen für die Adminsperre sind nach 0985 bis 0989 verschoben. Die alten Dateien 0980 bis 0984 für die Adminsperre gehören deshalb nicht mehr auf die Karte.
 
 Die deutschen Katalogeinträge wurden mit diesen Nummern abgeglichen. Die vorhandenen eigenen Sounddateien bleiben erhalten. Nur die Grundhelligkeitsansagen 0916 und 0951 wurden korrigiert: Sie hatten von „Farbe“ gesprochen. Die neuen Dateien wurden lokal mit der deutschen Windows-Stimme „Microsoft Katja“ erzeugt. Die Pixel-Box-Ansagen sind derzeit nur im deutschen SD-Paket enthalten; die offiziellen englischen und französischen Pakete enthalten diese Ergänzungen nicht.
 
-Die neuen Modifikationskarten stehen unter Optionen 13 (Ruhelicht), 14 (Wiedergabeanimation wechseln), 15 (zeitbegrenztes Nachtlicht, standardmäßig 30 Minuten), 16 (Grundfarben durchschalten) und 17 (feste Grundfarbe). Ihre Menüansagen und Einleitungen verwenden 1100 bis 1106, die Aktivierungsansagen 0351 bis 0354. Dadurch bleiben die offiziellen Adminsperr-Ansagen 0985 bis 0989 frei von Überschneidungen. Die Kartenmodi 200 bis 204 sind von den Menüpositionen getrennt. Bedienung und Kartenformat stehen in [pixel-box-light-cards.md](pixel-box-light-cards.md).
+Die weiteren Lichtkarten stehen unter Optionen 13 (Wiedergabeanimation wechseln), 14 (Grundfarben durchschalten) und 15 (feste Grundfarbe). Ihre Menüansagen verwenden 1101, 1104 und 1105; Einleitungen für Nachtlichtdauer und Farbwahl liegen auf 1103, 1106 und 1107. Die Aktivierungsansagen liegen auf 0350, 0352 und 0354. Die bisherigen Ansagen für Ruhelicht und ein eigenes zeitbegrenztes Nachtlicht werden nicht mehr aufgerufen. Dadurch bleiben die offiziellen Adminsperr-Ansagen 0985 bis 0989 frei von Überschneidungen. Die Kartenmodi bleiben von den Menüpositionen getrennt. Bedienung und Kartenformat stehen in [pixel-box-light-cards.md](pixel-box-light-cards.md).
 
 Im AVR-EEPROM bleiben TonUINO-Einstellungen bei Adresse 100 und zusätzliche Shortcuts ab 156. Die fünf LED-Datenbytes liegen separat bei 148 bis 152; 153 bis 155 enthalten Kennung `PB` und Formatversion 1. Der erste Start übernimmt plausible Werte des bisherigen AVR-Forks ab Adresse 140. Gelöschte oder ungültige Werte erhalten die bisherigen Standardwerte. Danach kennzeichnet der eigene Datenblock die migrierten Werte. Compilerprüfungen verhindern, dass zukünftige Erweiterungen diesen Speicherbereich überlappen.
 

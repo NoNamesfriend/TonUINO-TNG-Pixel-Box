@@ -6,4 +6,4 @@ Die Konfiguration und der Updateablauf stehen in [docs/pixel-box-update.md](docs
 
 Die umgesetzten Codeoptimierungen und ihr Speicherbedarf stehen in [docs/pixel-box-optimizations.md](docs/pixel-box-optimizations.md).
 
-Die fünf Wiedergabeanimationen, Karten zum Durchschalten von Animationen und Farben, feste Farbkarten, Ruhelicht und das zeitbegrenzte Nachtlicht sind in [docs/pixel-box-light-cards.md](docs/pixel-box-light-cards.md) beschrieben. Die gemessenen Speichergrößen und Testergebnisse stehen in [docs/pixel-box-validation.md](docs/pixel-box-validation.md).
+Die fünf Wiedergabeanimationen, Karten zum Durchschalten von Animationen und Farben, feste Farbkarten und das gemeinsame Nachtlicht mit wählbarer Dauer sind in [docs/pixel-box-light-cards.md](docs/pixel-box-light-cards.md) beschrieben. Die gemessenen Speichergrößen und Testergebnisse stehen in [docs/pixel-box-validation.md](docs/pixel-box-validation.md).

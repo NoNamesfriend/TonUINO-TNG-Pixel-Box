@@ -31,22 +31,13 @@ uint32_t Neo_pixels::scaleColor(uint32_t color, uint8_t value)
   return (static_cast<uint32_t>(r) << 16) | (static_cast<uint16_t>(g) << 8) | b;
 }
 
-void Neo_pixels::setLightMode(LightMode mode)
-{
-  if (isShuttingDown()) return;
-  setNightLight(false);
-  lightMode = mode;
-  sceneStarted = millis();
-  renderedState = State::none;
-  staticFrame = false;
-}
-
 void Neo_pixels::setTimedNightLight(uint8_t minutes)
 {
   if (isShuttingDown()) return;
   setNightLight(true);
   timedNight = true;
-  nightMinutes = minutes >= 1 && minutes <= 120 ? minutes : pixelDefaultNightMinutes;
+  nightMinutes = (minutes >= 1 && minutes <= 120) || minutes == pixelUnlimitedNightMinutes
+                   ? minutes : pixelDefaultNightMinutes;
   nightStarted = millis();
   animStepStart = millis() - cycleTime;
 }
@@ -140,15 +131,14 @@ void Neo_pixels::animColorBlend()
 void Neo_pixels::animFeedback(Feedback event, uint32_t elapsed)
 {
   if (event == Feedback::color_selected) {
-    displayAll(hue, nightLightEnabled || lightMode == LightMode::quiet ? 64 : 255);
+    displayAll(hue, nightLightEnabled ? 64 : 255);
     return;
   }
   if (static_cast<uint32_t>(millis() - animStepStart) < cycleTime) return;
   animStepStart = millis();
   staticFrame = false;
-  const uint8_t limit = lightMode == LightMode::quiet ? 64 : 255;
-  pixels.fill(nightLightEnabled ? 0 : lightMode == LightMode::quiet ? scaleColor(warm, 33)
-                                                               : pixels.ColorHSV(hue, 255, baseValue));
+  const uint8_t limit = nightLightEnabled ? 64 : 255;
+  pixels.fill(nightLightEnabled ? 0 : pixels.ColorHSV(hue, 255, baseValue));
   if (event == Feedback::recognized) {
     const uint8_t reach = min(static_cast<uint32_t>((pixels.numPixels() + 1) / 2), elapsed * pixels.numPixels() / 1800 + 1);
     for (uint16_t i = 0; i < pixels.numPixels(); ++i)
@@ -196,7 +186,7 @@ void Neo_pixels::animSleep()
   if (sleepWaitingForTrack && static_cast<uint32_t>(millis() - animStepStart) < cycleTime) return;
   animStepStart = millis();
   pixels.clear();
-  const uint8_t maximum = lightMode == LightMode::quiet ? 33 : 166;
+  const uint8_t maximum = 166;
   if (sleepWaitingForTrack) {
     const uint8_t value = 30 + pulseValue(static_cast<uint32_t>(millis()) - sceneStarted, 2800) / 4;
     const uint32_t color = scaleColor(warm, static_cast<uint16_t>(value) * maximum / 166);
@@ -218,7 +208,7 @@ void Neo_pixels::animSleep()
 
 void Neo_pixels::animNightLight()
 {
-  if (!timedNight) {
+  if (!timedNight || nightMinutes == pixelUnlimitedNightMinutes) {
     displayNightLight();
     return;
   }
@@ -236,7 +226,7 @@ void Neo_pixels::animNightLight()
   }
   const uint32_t remaining = duration - elapsed;
   if (remaining >= 60000) {
-    displayColor(scaleColor(warm, nightLightValue));
+    displayNightLight();
     return;
   }
   if (static_cast<uint32_t>(millis() - animStepStart) < cycleTime) return;
@@ -246,7 +236,7 @@ void Neo_pixels::animNightLight()
   for (uint16_t i = 0; i < pixels.numPixels(); ++i) {
     const int16_t distance = i < pixels.numPixels() / 2 ? (pixels.numPixels() - 1) / 2 - i : i - pixels.numPixels() / 2;
     const uint8_t value = min(255, max(0, static_cast<int16_t>(extent) - distance * 255));
-    pixels.setPixelColor(i, scaleColor(warm, static_cast<uint16_t>(value) * nightLightValue / 255));
+    pixels.setPixelColor(i, pixels.ColorHSV(pixelNightLightHue, 255, static_cast<uint16_t>(value) * nightLightValue / 255));
   }
   pixels.show();
 }

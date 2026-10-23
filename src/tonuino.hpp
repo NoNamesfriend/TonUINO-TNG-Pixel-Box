@@ -41,17 +41,18 @@ public:
   void     jumpToTrack(uint8_t track);
 
   void resetActiveModifier   () {
-#ifdef NeoPixels
-    if (activeModifier == &nightLight)
-      neo_pixels.setNightLight(false);
-#endif
     activeModifier = &noneModifier;
   }
   Modifier& getActiveModifier() { return *activeModifier; }
 
   void setStandbyTimer();
   void disableStandbyTimer();
-  unsigned long getRemainingStandbyTimer() { return standbyTimer.remainingTime(); }
+  unsigned long getRemainingStandbyTimer() {
+#ifdef NeoPixels
+    if (standbyTimeoutPending) return 0;
+#endif
+    return standbyTimer.remainingTime();
+  }
 
   void setMyFolder(const folderSettings &newFolder, bool a_myFolderIsCard) {
 #ifdef NeoPixels
@@ -185,12 +186,12 @@ private:
 #ifdef MODIFICATION_CARD_JUKEBOX
   JukeboxModifier      jukeboxModifier     {};
 #endif
-#ifdef NeoPixels
-  NightLight           nightLight          {};
-#endif
   Modifier*            activeModifier      {&noneModifier};
 
   Timer                standbyTimer        {};
+#ifdef NeoPixels
+  bool                 standbyTimeoutPending{};
+#endif
 
   folderSettings       myFolder            {};
   bool                 myFolderIsCard      {};

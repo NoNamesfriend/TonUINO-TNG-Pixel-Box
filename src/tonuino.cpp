@@ -45,6 +45,9 @@ ISR(TIMER1_COMPA_vect){
 
 void Tonuino::setup() {
   request_shutdown = false;
+#ifdef NeoPixels
+  standbyTimeoutPending = false;
+#endif
 #ifdef USE_LED_BUTTONS
   ledManager.begin();
 #endif
@@ -565,6 +568,10 @@ void Tonuino::jumpToTrack(uint8_t track) {
 void Tonuino::setStandbyTimer() {
   if (isStandbyTimerOff())
     return;
+#ifdef NeoPixels
+  if (standbyTimeoutPending)
+    return;
+#endif
   LOG(standby_log, s_debug, F("setStandbyTimer"));
   if (settings.standbyTimer != 0 && not standbyTimer.isActive()) {
     standbyTimer.start(settings.standbyTimer * 60 * 1000);
@@ -575,6 +582,9 @@ void Tonuino::setStandbyTimer() {
 void Tonuino::disableStandbyTimer() {
   LOG(standby_log, s_debug, F("disableStandbyTimer"));
   standbyTimer.stop();
+#ifdef NeoPixels
+  standbyTimeoutPending = false;
+#endif
   if (settings.standbyTimer != 0) {
     LOG(standby_log, s_info, F("timer stopped"));
   }
@@ -582,17 +592,19 @@ void Tonuino::disableStandbyTimer() {
 
 void Tonuino::checkStandby() {
 #ifdef NeoPixels
-  // A night-light card must remain usable even with a short standby timeout.
-  // Resume the configured idle timeout after the light finishes or is removed.
-  if (neo_pixels.nightLightKeepsAwake()) {
-    standbyTimer.stop();
-    return;
-  }
   if (settings.standbyTimer != 0 && !standbyTimer.isActive()
       && (SM_tonuino::is_in_state<Idle>() || SM_tonuino::is_in_state<Pause>()))
     setStandbyTimer();
-#endif
+  // Keep the elapsed idle deadline, but let the night light finish first.
+  // Latch expiry before isExpired() deactivates the timer, even across wraparound.
+  if (standbyTimer.isActive() && standbyTimer.isExpired())
+    standbyTimeoutPending = true;
+  if (neo_pixels.nightLightKeepsAwake())
+    return;
+  if (standbyTimeoutPending) {
+#else
   if (standbyTimer.isActive() && standbyTimer.isExpired()) {
+#endif
     shutdown();
   }
 }
@@ -716,30 +728,27 @@ bool Tonuino::specialCard(const folderSettings &nfcTag) {
     neo_pixels.call_on_feedback(Neo_pixels::Feedback::color_selected);
     return true;
   }
-  if (nfcTag.folder == 0 && (nfcTag.mode == pmode_t::pixel_quiet || nfcTag.mode == pmode_t::pixel_cycle_animation
+  if (nfcTag.folder == 0 && (nfcTag.mode == pmode_t::night_light || nfcTag.mode == pmode_t::pixel_quiet || nfcTag.mode == pmode_t::pixel_cycle_animation
                             || nfcTag.mode == pmode_t::timed_night_light)) {
     // Lighting cards coexist with playback modifiers such as the sleep timer.
-    if (activeModifier == &nightLight)
-      resetActiveModifier();
     bool enabled;
     advertTracks message;
-    if (nfcTag.mode == pmode_t::timed_night_light) {
+    if (nfcTag.mode != pmode_t::pixel_cycle_animation) {
+      // Older night-light and quiet-light cards have no duration. Keep them
+      // unlimited, but use the same light, toggle and standby rules as new cards.
+      const uint8_t minutes = nfcTag.mode == pmode_t::timed_night_light ? nfcTag.special : pixelUnlimitedNightMinutes;
       enabled = !neo_pixels.timedNightLightActive();
-      if (enabled) neo_pixels.setTimedNightLight(nfcTag.special);
+      if (enabled) neo_pixels.setTimedNightLight(minutes);
       else neo_pixels.setNightLight(false);
-      message = advertTracks::t_353_timed_night_light;
-    } else if (nfcTag.mode == pmode_t::pixel_cycle_animation) {
+      message = advertTracks::t_350_night_light;
+    } else {
       const auto count = static_cast<uint8_t>(PixelPlayAnimation::NUMBER_OF_ANIMATIONS);
       settings.neoPixelPlayAnimation = (settings.neoPixelPlayAnimation + 1) % count;
       settings.writeSettingsToFlash();
-      neo_pixels.setLightMode(Neo_pixels::LightMode::normal);
+      neo_pixels.setNightLight(false);
       neo_pixels.updateFromSettings(settings);
       enabled = true;
       message = advertTracks::t_352_next_animation;
-    } else {
-      enabled = neo_pixels.getLightMode() != Neo_pixels::LightMode::quiet;
-      neo_pixels.setLightMode(enabled ? Neo_pixels::LightMode::quiet : Neo_pixels::LightMode::normal);
-      message = advertTracks::t_351_quiet_light;
     }
     mp3.playAdvertisement(enabled ? message : advertTracks::t_261_deactivate_mod_card, false);
     return true;
@@ -762,9 +771,6 @@ bool Tonuino::specialCard(const folderSettings &nfcTag) {
 #endif // MEMORY_GAME
 
 
-#ifdef NeoPixels
-  const bool hadLegacyNightLight = activeModifier == &nightLight;
-#endif
   switch (nfcTag.mode) {
   case pmode_t::sleep_timer:  LOG(card_log, s_info, F("act. sleepTimer"));
                               mp3.playAdvertisement(advertTracks::t_302_sleep            , false/*onlyIfIsPlaying*/);
@@ -816,10 +822,6 @@ bool Tonuino::specialCard(const folderSettings &nfcTag) {
                               return true;
 #endif // BT_MODULE
 
-#ifdef NeoPixels
-case pmode_t::night_light:  LOG(card_log, s_info, F("act. nightLight"));
-                           activeModifier = &nightLight                                     ;break;
-#endif
   case pmode_t::stdb_timer_sw:LOG(card_log, s_info, F("toggle std timer from "), standbyTimerOff);
                               switchStandbyTimerOnOff();
                               return true;
@@ -830,10 +832,6 @@ case pmode_t::night_light:  LOG(card_log, s_info, F("act. nightLight"));
 
   default:                    return false;
   }
-#ifdef NeoPixels
-  if (hadLegacyNightLight && activeModifier != &nightLight)
-    neo_pixels.setNightLight(false);
-#endif
   activeModifier->init(nfcTag.mode, nfcTag.special);
   return true;
 }

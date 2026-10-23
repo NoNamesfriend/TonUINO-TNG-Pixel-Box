@@ -149,17 +149,18 @@ mp3/0950_neo_pixel_hue_intro.mp3|Neo Pixel Farbe festlegen und mit der Pausetast
 mp3/0951_neo_pixel_base_value_intro.mp3|Neo Pixel Grundhelligkeit festlegen und mit der Pausetaste bestätigen.
 mp3/0952_neo_pixel_play_animation_intro.mp3|Neo Pixel Play Animation festlegen und mit der Pausetaste bestätigen.
 mp3/0953_neo_pixel_night_light_brightness_intro.mp3|Helligkeit für Nachtlicht festlegen und mit der Pausetaste bestätigen.
-mp3/0982_modifier_night_light.mp3|Nachtlicht-Modus: Anstatt der LED Effekte leuchtet durchgängig ein Nachtlicht.
+mp3/0982_modifier_night_light.mp3|Nachtlicht. Die LEDs leuchten gelb mit der eingestellten Nachtlichthelligkeit. Wähle anschließend die Dauer oder unbegrenzt.
 advert/0350_night_light.mp3|Nachtlicht-Modus aktiviert.
 
 mp3/1100_modifier_quiet_light.mp3|Ruhelicht. Die LEDs leuchten schwach und gleichmäßig. Musik und Einschlaftimer bleiben aktiv.
 mp3/1101_modifier_next_animation.mp3|Wiedergabeanimation wechseln. Jedes Auflegen dieser Karte wählt die nächste Animation. Die Auswahl bleibt nach dem Neustart gespeichert.
-mp3/1102_modifier_timed_night.mp3|Nachtlicht mit Zeitbegrenzung. Am Ende wird nur das Licht ausgeschaltet.
-mp3/1103_night_duration_intro.mp3|Wie lange soll das Nachtlicht leuchten? Dreißig Minuten sind voreingestellt. Mit Hoch und Runter kannst du die Zeit ändern. Bestätige mit der Pausetaste.
+mp3/1102_modifier_timed_night.mp3|Nachtlicht mit wählbarer Dauer. Nach Ablauf wird nur das Licht ausgeschaltet. Du kannst auch unbegrenzt wählen.
+mp3/1103_night_duration_intro.mp3|Wie lange soll das Nachtlicht leuchten? Dreißig Minuten sind voreingestellt. Mit Hoch und Runter kannst du die Zeit ändern. Nach sechzig Minuten folgt unbegrenzt. Bestätige mit der Pausetaste.
 advert/0351_quiet_light.mp3|Ruhelicht aktiviert.
 advert/0352_next_animation.mp3|Nächste Wiedergabeanimation gewählt.
 advert/0353_timed_night_light.mp3|Nachtlicht mit Zeitbegrenzung aktiviert.
 mp3/1104_modifier_next_color.mp3|Grundfarben durchschalten. Jedes erneute Auflegen wählt die nächste von acht Farben. Die Auswahl bleibt gespeichert.
 mp3/1105_modifier_fixed_color.mp3|Eine feste Grundfarbe setzen. Wähle beim Erstellen die Farbe für diese Karte. Beim Auflegen wird immer diese Farbe eingestellt.
 mp3/1106_card_color_intro.mp3|Welche Farbe soll auf die Karte? Mit Hoch und Runter kannst du die Farbe auf dem Streifen ansehen. Die Pausetaste bestätigt. Die Grundfarbe der Box wird erst beim Auflegen der fertigen Karte geändert.
+mp3/1107_night_duration_unlimited.mp3|Unbegrenzt.
 advert/0354_color_selected.mp3|Grundfarbe eingestellt.

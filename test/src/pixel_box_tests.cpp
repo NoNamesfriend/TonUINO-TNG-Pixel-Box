@@ -102,7 +102,7 @@ TEST_F(pixel_box_fixture, volume_feedback_returns_to_idle_and_handles_equal_limi
   EXPECT_EQ(pixels.getState(), Neo_pixels::State::idle);
 }
 
-TEST_F(pixel_box_fixture, night_light_is_stable_and_releases_when_modifier_changes) {
+TEST_F(pixel_box_fixture, legacy_night_light_is_stable_and_survives_audio_modifier_changes) {
   goto_idle();
   EXPECT_TRUE(tonuino.specialCard({0, pmode_t::night_light, 0, 0}));
   auto& pixels = tonuino.getNeoPixels();
@@ -116,6 +116,11 @@ TEST_F(pixel_box_fixture, night_light_is_stable_and_releases_when_modifier_chang
   EXPECT_EQ(Adafruit_NeoPixel::frame, frame);
   EXPECT_EQ(Adafruit_NeoPixel::showCount, shows);
   EXPECT_TRUE(tonuino.specialCard({0, pmode_t::repeat_single, 0, 0}));
+  EXPECT_EQ(getModifier().getActive(), pmode_t::repeat_single);
+  EXPECT_EQ(pixels.getState(), Neo_pixels::State::night_light);
+  tonuino.resetActiveModifier();
+  EXPECT_TRUE(pixels.nightLightKeepsAwake());
+  EXPECT_TRUE(tonuino.specialCard({0, pmode_t::night_light, 0, 0}));
   EXPECT_EQ(pixels.getState(), Neo_pixels::State::pause);
 }
 
@@ -255,6 +260,21 @@ TEST_F(pixel_box_fixture, shutdown_timer_survives_32_bit_rollover) {
   pixels.loop();
   EXPECT_EQ(Adafruit_NeoPixel::showCount, shows + 1);
   EXPECT_FALSE(pixels.shutdownFinished());
+}
+
+TEST_F(pixel_box_fixture, button_shutdown_observes_release_instead_of_waiting_ten_seconds) {
+  auto& buttons = tonuino.getButtons();
+  press_button(buttonPausePin);
+  current_time += buttonDbTime + 1;
+  buttons.getCommandRaw();
+  ASSERT_FALSE(buttons.isNoButton());
+  release_button(buttonPausePin); // Physical release has not been sampled yet.
+  const auto start = current_time;
+  SM_tonuino::dispatch(command_e(commandRaw::pauseLong));
+  EXPECT_LT(current_time - start, 1000UL);
+  EXPECT_TRUE(tonuino.getNeoPixels().isShuttingDown());
+  execute_cycle_for_ms(700);
+  EXPECT_EQ(pin_value[shutdownPin], LOW);
 }
 
 TEST_F(pixel_box_fixture, static_previews_and_volume_only_show_when_the_image_changes) {
@@ -482,26 +502,74 @@ TEST_F(pixel_box_fixture, color_blend_changes_color_uniformly_and_keeps_advancin
   EXPECT_EQ(Adafruit_NeoPixel::frame, first);
 }
 
-TEST_F(pixel_box_fixture, quiet_light_is_warm_static_and_can_coexist_with_sleep_timer) {
+TEST_F(pixel_box_fixture, all_night_card_formats_share_yellow_brightness_and_audio_modifier_independence) {
+  goto_play({2, pmode_t::album, 0, 0});
+  auto& pixels = tonuino.getNeoPixels();
+  getSettings().neoPixelHue = 44000;
+  getSettings().neoPixelNightLightValue = 127;
+  pixels.updateFromSettings(getSettings());
+  pixels.setTimedNightLight(255);
+  const auto yellow = Adafruit_NeoPixel::frame;
+  pixels.setNightLight(false);
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::sleep_timer, 30, 0}));
+  uint8_t before[EEPROM.max_len];
+  memcpy(before, EEPROM.eeprom_mem, sizeof(before));
+  for (auto mode : {pmode_t::night_light, pmode_t::pixel_quiet, pmode_t::timed_night_light}) {
+    const uint8_t duration = mode == pmode_t::timed_night_light ? 255 : 0;
+    ASSERT_TRUE(tonuino.specialCard({0, mode, duration, 0}));
+    pixels.loop();
+    EXPECT_EQ(Adafruit_NeoPixel::frame, yellow);
+    EXPECT_TRUE(pixels.nightLightKeepsAwake());
+    EXPECT_EQ(getModifier().getActive(), pmode_t::sleep_timer);
+    EXPECT_EQ(getMp3().df_adv_track, 350);
+    current_time += 6 * 60 * 60000UL;
+    pixels.loop();
+    EXPECT_EQ(Adafruit_NeoPixel::frame, yellow);
+    EXPECT_TRUE(pixels.nightLightKeepsAwake());
+    ASSERT_TRUE(tonuino.specialCard({0, mode, duration, 0}));
+    EXPECT_FALSE(pixels.nightLightKeepsAwake());
+    EXPECT_EQ(getModifier().getActive(), pmode_t::sleep_timer);
+    EXPECT_EQ(getMp3().df_adv_track, 261);
+    EXPECT_EQ(memcmp(before, EEPROM.eeprom_mem, sizeof(before)), 0);
+  }
+}
+
+TEST_F(pixel_box_fixture, legacy_quiet_card_holds_expired_standby_until_the_common_night_light_is_off) {
+  goto_idle();
+  getSettings().standbyTimer = 1;
+  tonuino.setStandbyTimer();
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_quiet, 0, 0}));
+  current_time += 60001;
+  execute_cycle();
+  EXPECT_FALSE(tonuino.getNeoPixels().isShuttingDown());
+  EXPECT_EQ(tonuino.getRemainingStandbyTimer(), 0u);
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::night_light, 0, 0}));
+  execute_cycle();
+  EXPECT_TRUE(tonuino.getNeoPixels().isShuttingDown());
+}
+
+TEST_F(pixel_box_fixture, legacy_quiet_card_is_static_yellow_and_can_coexist_with_sleep_timer) {
   goto_play({2, pmode_t::album, 0, 0});
   ASSERT_TRUE(tonuino.specialCard({0, pmode_t::sleep_timer, 30, 0}));
   ASSERT_EQ(getModifier().getActive(), pmode_t::sleep_timer);
   uint8_t before[EEPROM.max_len];
   memcpy(before, EEPROM.eeprom_mem, sizeof(before));
   ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_quiet, 0, 0}));
-  EXPECT_EQ(tonuino.getNeoPixels().getLightMode(), Neo_pixels::LightMode::quiet);
+  EXPECT_TRUE(tonuino.getNeoPixels().nightLightKeepsAwake());
   EXPECT_EQ(getModifier().getActive(), pmode_t::sleep_timer);
   EXPECT_EQ(memcmp(before, EEPROM.eeprom_mem, sizeof(before)), 0);
   ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_quiet, 0, 0}));
-  EXPECT_EQ(tonuino.getNeoPixels().getLightMode(), Neo_pixels::LightMode::normal);
+  EXPECT_FALSE(tonuino.getNeoPixels().nightLightKeepsAwake());
   EXPECT_EQ(getModifier().getActive(), pmode_t::sleep_timer);
   auto& pixels = tonuino.getNeoPixels();
   pixels.clearSleepTimer();
-  pixels.setLightMode(Neo_pixels::LightMode::quiet);
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_quiet, 0, 0}));
   pixels.loop();
   const auto frame = Adafruit_NeoPixel::frame;
   const auto shows = Adafruit_NeoPixel::showCount;
-  EXPECT_EQ(frame[0], 0x020100u);
+  EXPECT_GT(frame[0] >> 16, (frame[0] >> 8) & 255);
+  EXPECT_GT((frame[0] >> 8) & 255, 0u);
+  EXPECT_EQ(frame[0] & 255, 0u);
   for (int i = 0; i < 20; ++i) { current_time += 50; pixels.loop(); }
   EXPECT_EQ(Adafruit_NeoPixel::frame, frame);
   EXPECT_EQ(Adafruit_NeoPixel::showCount, shows);
@@ -523,6 +591,52 @@ TEST_F(pixel_box_fixture, lively_play_animation_has_two_peaks_and_rotating_color
   pixels.loop();
   EXPECT_NE(Adafruit_NeoPixel::frame[1], first[0]);
   EXPECT_EQ(getSettings().neoPixelPlayAnimation, 4);
+}
+
+TEST_F(pixel_box_fixture, timed_night_stays_yellow_from_activation_through_final_minute) {
+  auto& pixels = tonuino.getNeoPixels();
+  for (const uint8_t brightness : {uint8_t(63), uint8_t(127), uint8_t(255)}) {
+    getSettings().neoPixelHue = 44000; // The selected blue base colour must not leak into night light.
+    getSettings().neoPixelNightLightValue = brightness;
+    pixels.updateFromSettings(getSettings());
+    pixels.setNightLight(true);
+    const auto yellow = Adafruit_NeoPixel::frame;
+    pixels.setNightLight(false);
+    pixels.setTimedNightLight(30);
+    EXPECT_EQ(Adafruit_NeoPixel::frame, yellow);
+    pixels.loop();
+    EXPECT_EQ(Adafruit_NeoPixel::frame, yellow);
+    current_time += 29 * 60000UL;
+    pixels.loop();
+    EXPECT_EQ(Adafruit_NeoPixel::frame, yellow);
+    current_time += 30000;
+    pixels.loop();
+    for (const auto color : Adafruit_NeoPixel::frame) {
+      EXPECT_EQ(color & 255, 0u); // Saturated yellow has no blue, including the fade-out.
+      EXPECT_LE(color, yellow[0]);
+    }
+    EXPECT_EQ(Adafruit_NeoPixel::frame[5], yellow[5]);
+    pixels.setNightLight(false);
+  }
+}
+
+TEST_F(pixel_box_fixture, unlimited_duration_card_stays_on_and_toggles_off_with_the_same_card) {
+  goto_play({2, pmode_t::album, 0, 0});
+  auto& pixels = tonuino.getNeoPixels();
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::timed_night_light, 255, 0}));
+  pixels.loop();
+  const auto yellow = Adafruit_NeoPixel::frame;
+  EXPECT_TRUE(pixels.timedNightLightActive());
+  EXPECT_TRUE(pixels.nightLightKeepsAwake());
+  EXPECT_EQ(getMp3().df_adv_track, 350);
+  current_time += 6 * 60 * 60000UL;
+  pixels.loop();
+  EXPECT_EQ(Adafruit_NeoPixel::frame, yellow);
+  EXPECT_TRUE(pixels.nightLightKeepsAwake());
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::timed_night_light, 255, 0}));
+  EXPECT_FALSE(pixels.timedNightLightActive());
+  EXPECT_FALSE(pixels.nightLightKeepsAwake());
+  EXPECT_EQ(getMp3().df_adv_track, 261);
 }
 
 TEST_F(pixel_box_fixture, timed_night_defaults_to_30_minutes_and_only_ends_the_light) {
@@ -582,7 +696,7 @@ TEST_F(pixel_box_fixture, timed_night_and_playback_modifier_reset_are_independen
   ASSERT_TRUE(tonuino.specialCard({0, pmode_t::timed_night_light, 30, 0}));
   ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_cycle_animation, 0, 0}));
   EXPECT_FALSE(tonuino.getNeoPixels().timedNightLightActive());
-  EXPECT_EQ(tonuino.getNeoPixels().getLightMode(), Neo_pixels::LightMode::normal);
+  EXPECT_FALSE(tonuino.getNeoPixels().nightLightKeepsAwake());
 }
 
 TEST_F(pixel_box_fixture, admin_and_animation_preview_remain_visible_over_timed_night) {
@@ -754,30 +868,87 @@ TEST_F(pixel_box_fixture, low_battery_warning_is_reached_without_confusing_it_wi
 #endif
 
 
-TEST_F(pixel_box_fixture, timed_night_prevents_early_standby_and_restarts_idle_timeout_after_light_ends) {
+TEST_F(pixel_box_fixture, expired_standby_waits_for_night_light_and_shuts_down_when_it_ends) {
   getSettings().standbyTimer=1;
   tonuino.setStandbyTimer();
   ASSERT_TRUE(tonuino.specialCard({0, pmode_t::timed_night_light, 30, 0}));
   execute_cycle();
-  EXPECT_EQ(tonuino.getRemainingStandbyTimer(), 0xffffffffUL);
+  EXPECT_GT(tonuino.getRemainingStandbyTimer(), 59000UL);
+  EXPECT_LE(tonuino.getRemainingStandbyTimer(), 60000UL);
   current_time += 2 * 60000UL;
   execute_cycle();
   EXPECT_FALSE(tonuino.getNeoPixels().isShuttingDown());
+  EXPECT_EQ(tonuino.getRemainingStandbyTimer(), 0UL);
   current_time += 28 * 60000UL;
   execute_cycle();
   EXPECT_FALSE(tonuino.getNeoPixels().timedNightLightActive());
   for (auto color : Adafruit_NeoPixel::frame) EXPECT_EQ(color, 0u);
   EXPECT_EQ(pin_value[shutdownPin], HIGH);
   execute_cycle();
-  EXPECT_LE(tonuino.getRemainingStandbyTimer(), 60000UL);
-  EXPECT_GT(tonuino.getRemainingStandbyTimer(), 59000UL);
+  EXPECT_TRUE(tonuino.getNeoPixels().isShuttingDown());
+  execute_cycle_for_ms(600);
+  EXPECT_EQ(pin_value[shutdownPin], LOW);
+}
+
+TEST_F(pixel_box_fixture, night_light_ending_before_standby_keeps_the_original_deadline) {
+  getSettings().standbyTimer = 5;
+  tonuino.setStandbyTimer();
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::timed_night_light, 1, 0}));
+  execute_cycle();
+  current_time += 60000UL;
+  execute_cycle();
+  EXPECT_FALSE(tonuino.getNeoPixels().timedNightLightActive());
+  execute_cycle();
   EXPECT_FALSE(tonuino.getNeoPixels().isShuttingDown());
+  EXPECT_LE(tonuino.getRemainingStandbyTimer(), 240000UL);
+  EXPECT_GT(tonuino.getRemainingStandbyTimer(), 230000UL);
+  current_time += 4 * 60000UL;
+  execute_cycle();
+  EXPECT_TRUE(tonuino.getNeoPixels().isShuttingDown());
+}
+
+TEST_F(pixel_box_fixture, unlimited_night_retains_expired_standby_across_clock_rollover_until_deactivated) {
+  getSettings().standbyTimer = 1;
+  tonuino.setStandbyTimer();
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::timed_night_light, 255, 0}));
+  current_time += 2 * 60000UL;
+  execute_cycle();
+  EXPECT_EQ(tonuino.getRemainingStandbyTimer(), 0UL);
+  EXPECT_FALSE(tonuino.getNeoPixels().isShuttingDown());
+  current_time = static_cast<uint32_t>(current_time + 0x80000000UL);
+  execute_cycle();
+  EXPECT_EQ(tonuino.getRemainingStandbyTimer(), 0UL);
+  EXPECT_FALSE(tonuino.getNeoPixels().isShuttingDown());
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::timed_night_light, 255, 0}));
+  execute_cycle();
+  EXPECT_TRUE(tonuino.getNeoPixels().isShuttingDown());
+}
+
+TEST_F(pixel_box_fixture, playback_clears_standby_which_expired_during_night_light) {
+  getSettings().standbyTimer = 1;
+  tonuino.setStandbyTimer();
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::timed_night_light, 255, 0}));
+  current_time += 2 * 60000UL;
+  execute_cycle();
+  EXPECT_EQ(tonuino.getRemainingStandbyTimer(), 0UL);
+  goto_play({2, pmode_t::album, 0, 0});
+  ASSERT_TRUE(tonuino.specialCard({0, pmode_t::timed_night_light, 255, 0}));
+  current_time += 2 * 60000UL;
+  execute_cycle();
+  EXPECT_FALSE(tonuino.getNeoPixels().isShuttingDown());
+  EXPECT_EQ(tonuino.getRemainingStandbyTimer(), 0xffffffffUL);
+  button_for_command(command::pause, state_for_command::play);
+  ASSERT_TRUE(SM_tonuino::is_in_state<Pause>());
+  EXPECT_GT(tonuino.getRemainingStandbyTimer(), 59000UL);
+  current_time += 60000UL;
+  execute_cycle();
+  EXPECT_TRUE(tonuino.getNeoPixels().isShuttingDown());
 }
 
 TEST_F(pixel_box_fixture, malformed_lighting_card_with_music_folder_is_rejected) {
   card_in({2, pmode_t::pixel_quiet, 0, 0});
   EXPECT_TRUE(SM_tonuino::is_in_state<Idle>());
-  EXPECT_EQ(tonuino.getNeoPixels().getLightMode(), Neo_pixels::LightMode::normal);
+  EXPECT_FALSE(tonuino.getNeoPixels().nightLightKeepsAwake());
   for (auto color : Adafruit_NeoPixel::frame) EXPECT_EQ(color, Adafruit_NeoPixel::frame[0]);
   EXPECT_NE(Adafruit_NeoPixel::frame[0] & 0x00ffff, 0u);
 }
@@ -787,14 +958,17 @@ TEST_F(pixel_box_fixture, lighting_card_is_read_from_rfid_without_stopping_playb
   card_out();
   card_in({0, pmode_t::pixel_quiet, 0, 0});
   EXPECT_TRUE(SM_tonuino::is_in_state<Play>());
-  EXPECT_EQ(tonuino.getNeoPixels().getLightMode(), Neo_pixels::LightMode::quiet);
+  EXPECT_TRUE(tonuino.getNeoPixels().nightLightKeepsAwake());
   EXPECT_EQ(getModifier().getActive(), pmode_t::none);
   EXPECT_TRUE(getMp3().is_playing_adv());
   execute_cycle_for_ms(1100);
-  EXPECT_EQ(Adafruit_NeoPixel::frame[0], 0x020100u);
+  const auto yellow = Adafruit_NeoPixel::frame[0];
+  EXPECT_GT(yellow >> 16, (yellow >> 8) & 255);
+  EXPECT_GT((yellow >> 8) & 255, 0u);
+  EXPECT_EQ(yellow & 255, 0u);
   card_out();
   card_in({0, pmode_t::pixel_quiet, 0, 0});
-  EXPECT_EQ(tonuino.getNeoPixels().getLightMode(), Neo_pixels::LightMode::normal);
+  EXPECT_FALSE(tonuino.getNeoPixels().nightLightKeepsAwake());
   EXPECT_TRUE(SM_tonuino::is_in_state<Play>());
 }
 
@@ -835,12 +1009,12 @@ TEST_F(pixel_box_fixture, animation_card_advances_once_per_rfid_presentation_and
   EXPECT_TRUE(SM_tonuino::is_in_state<Play>());
 }
 
-TEST_F(pixel_box_fixture, animation_card_ends_quiet_light_and_is_also_usable_while_idle) {
+TEST_F(pixel_box_fixture, animation_card_ends_night_light_from_legacy_quiet_card_and_is_usable_while_idle) {
   ASSERT_TRUE(SM_tonuino::is_in_state<Idle>());
   getSettings().neoPixelPlayAnimation = 3;
   ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_quiet, 0, 0}));
   ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_cycle_animation, 0, 0}));
-  EXPECT_EQ(tonuino.getNeoPixels().getLightMode(), Neo_pixels::LightMode::normal);
+  EXPECT_FALSE(tonuino.getNeoPixels().nightLightKeepsAwake());
   EXPECT_EQ(getSettings().neoPixelPlayAnimation, 4);
   EXPECT_TRUE(SM_tonuino::is_in_state<Idle>());
   getSettings().neoPixelPlayAnimation = 0;
@@ -960,24 +1134,25 @@ TEST_F(pixel_box_fixture, invalid_fixed_colors_and_nonzero_music_folders_do_not_
   }
 }
 
-TEST_F(pixel_box_fixture, color_preview_is_dim_in_quiet_light_and_resumes_it_after_1200_ms) {
+TEST_F(pixel_box_fixture, color_preview_is_dim_with_legacy_quiet_card_and_resumes_yellow_after_1200_ms) {
   auto& pixels = tonuino.getNeoPixels();
   ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_quiet, 0, 0}));
   pixels.loop();
+  const auto yellow = Adafruit_NeoPixel::frame;
   ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_fixed_color, 45, 0}));
   pixels.loop();
   const auto blue = Adafruit_NeoPixel::frame[0] & 255;
   EXPECT_GT(blue, 0u);
   EXPECT_LT(blue, 20u);
-  EXPECT_EQ(pixels.getLightMode(), Neo_pixels::LightMode::quiet);
+  EXPECT_TRUE(pixels.nightLightKeepsAwake());
   const auto shows = Adafruit_NeoPixel::showCount;
   current_time += 600;
   pixels.loop();
   EXPECT_EQ(Adafruit_NeoPixel::showCount, shows);
   current_time += 601;
   pixels.loop();
-  EXPECT_EQ(Adafruit_NeoPixel::frame[0], 0x020100u);
-  EXPECT_EQ(pixels.getLightMode(), Neo_pixels::LightMode::quiet);
+  EXPECT_EQ(Adafruit_NeoPixel::frame, yellow);
+  EXPECT_TRUE(pixels.nightLightKeepsAwake());
 }
 
 TEST_F(pixel_box_fixture, color_cards_keep_unlimited_and_timed_night_lights_and_their_deadline) {
@@ -986,7 +1161,7 @@ TEST_F(pixel_box_fixture, color_cards_keep_unlimited_and_timed_night_lights_and_
   const auto oldNight = Adafruit_NeoPixel::frame;
   ASSERT_TRUE(tonuino.specialCard({0, pmode_t::pixel_fixed_color, 45, 0}));
   pixels.loop();
-  EXPECT_EQ(getModifier().getActive(), pmode_t::night_light);
+  EXPECT_EQ(getModifier().getActive(), pmode_t::none);
   EXPECT_TRUE(pixels.nightLightKeepsAwake());
   current_time += 1201;
   pixels.loop();

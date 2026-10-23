@@ -18,7 +18,6 @@ public:
     night_light, play_preview, startup, shutdown
   };
   using PlayAnimation = PixelPlayAnimation;
-  enum class LightMode : uint8_t { normal, quiet };
   enum class Feedback : uint8_t { none, recognized, empty_card, read_error, locked, battery, game_good, game_bad, color_selected };
   enum class GameSelection : uint8_t { none, first, second, quiz };
 
@@ -32,8 +31,6 @@ public:
   void setNormalState(State nextState);
   void setState(State nextState);
   void setNightLight(bool enabled);
-  void setLightMode(LightMode mode);
-  LightMode getLightMode() const { return lightMode; }
   void setTimedNightLight(uint8_t minutes);
   bool timedNightLightActive() const { return timedNight && nightLightEnabled && nightMinutes != 0; }
   bool nightLightKeepsAwake() const { return nightLightEnabled && (!timedNight || nightMinutes != 0); }
@@ -67,7 +64,6 @@ private:
   bool isPreparing{};
   bool isStateBlocking{};
   bool nightLightEnabled{};
-  LightMode lightMode{LightMode::normal};
   Feedback feedback{Feedback::none};
   GameSelection gameSelection{GameSelection::none};
   uint8_t sleepRemaining{255};

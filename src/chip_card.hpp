@@ -44,8 +44,8 @@ enum class pmode_t: uint8_t {
   stdb_timer_sw =  10,
   endless_sw    =  11,
 #ifdef NeoPixels
-  night_light   =  12,
-  pixel_quiet   = pixelQuietCardMode,
+  night_light   =  12, // Legacy unlimited night-light card.
+  pixel_quiet   = pixelQuietCardMode, // Legacy quiet-light card, now unlimited night light.
   pixel_cycle_animation  = pixelCycleAnimationCardMode,
   timed_night_light = pixelTimedNightCardMode,
   pixel_cycle_color = pixelCycleColorCardMode,

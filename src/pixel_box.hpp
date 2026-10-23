@@ -15,15 +15,18 @@ enum class PixelPlayAnimation : uint8_t {
 
 // Fork extensions: folder 0 is mandatory. Menu positions are separate from
 // stored RFID IDs and from system prompt numbers.
-constexpr uint8_t pixelQuietCardMode = 200;
+constexpr uint8_t pixelQuietCardMode = 200; // Legacy alias for unlimited night light.
 constexpr uint8_t pixelCycleAnimationCardMode = 201;
 constexpr uint8_t pixelTimedNightCardMode = 202;
 constexpr uint8_t pixelCycleColorCardMode = 203;
 constexpr uint8_t pixelFixedColorCardMode = 204;
 constexpr uint8_t pixelDefaultNightMinutes = 30;
+// Keep 0 as the legacy default; 255 explicitly opts out of the time limit.
+constexpr uint8_t pixelUnlimitedNightMinutes = 255;
+constexpr uint16_t pixelNightLightHue = 5000;
 constexpr uint16_t pixelModifierSound(uint8_t option) {
-  // 1103 is the night-light duration intro, not modifier option 16.
-  return option >= 16 ? 1104u + option - 16 : option >= 13 ? 1100u + option - 13 : 970u + option;
+  // One night-light entry at 12; stored card IDs and prompt IDs stay unchanged.
+  return option == 13 ? 1101u : option >= 14 ? 1104u + option - 14 : 970u + option;
 }
 
 constexpr uint16_t pixelHueFromOption(uint8_t option) {
